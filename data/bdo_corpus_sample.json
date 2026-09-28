@@ -1,0 +1,12 @@
+[
+  {
+    "id": "demo_001",
+    "nom": "Synchronicité de Vauville",
+    "description": "Alignement runique spontané",
+    "date_debut": "1999-12-31",
+    "taxonomie": {"classe_principale": "ESC"},
+    "coeur_dominant": "gris",
+    "delta_estime": {"pendant": 0.4},
+    "risque": 2
+  }
+]

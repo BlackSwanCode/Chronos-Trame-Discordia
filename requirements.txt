@@ -1,0 +1,5 @@
+rich
+networkx
+matplotlib
+numpy
+feedparser
