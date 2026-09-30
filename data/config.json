@@ -1,5 +1,11 @@
 {
   "db_path": "leviathan.db",
   "corpus_path": "data/bdo_corpus_sample.json",
-  "timewave_zero_date": "2012-12-21"
+  "timewave_zero_date": "2012-12-21",
+  "discord_webhook_url": "",
+  "rss_feeds": [
+    "https://www.science-et-vie.com/rss",
+    "https://www.futura-sciences.com/rss/actualites.xml"
+  ],
+  "rss_max_entries": 10
 }

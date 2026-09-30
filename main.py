@@ -27,7 +27,13 @@ def charger_config() -> dict:
     default_config = {
         "db_path": "leviathan.db",
         "corpus_path": "data/bdo_corpus_sample.json",
-        "timewave_zero_date": "2012-12-21"
+        "timewave_zero_date": "2012-12-21",
+        "discord_webhook_url": "",
+        "rss_feeds": [
+            "https://www.science-et-vie.com/rss",
+            "https://www.futura-sciences.com/rss/actualites.xml"
+        ],
+        "rss_max_entries": 10
     }
     if os.path.exists(config_path):
         with open(config_path, "r", encoding="utf-8") as f:
@@ -60,6 +66,29 @@ def initialiser_systeme(config: dict):
         tisserand.tisser_lien(source, cible, force, type_lien)
     
     return db, tisserand, timewave, fracturo, entites
+
+def ingerer_flux_rss(config: dict, db, fracturo, tisserand, timewave, urls=None, max_entries=None):
+    """Active l'ingestion RSS : le Léviathan digère les flux et peut déclencher un Mugissement."""
+    from core.rss_ingestor import RSSIngestor
+
+    # Webhook : config.json, sinon variable d'environnement (gérée aussi par DiscordNotifier)
+    webhook_url = config.get("discord_webhook_url", "") or os.getenv("CHRONOS_TRAME_WEBHOOK_URL")
+    flux = urls or config.get("rss_feeds", [])
+    max_entries = max_entries or config.get("rss_max_entries", 10)
+
+    if not flux:
+        console.print("[yellow]Aucun flux RSS configuré (clé rss_feeds ou option --flux).[/]")
+        return
+
+    ingestor = RSSIngestor(db, fracturo, tisserand, timewave, webhook_url=webhook_url)
+    console.print("[bold green]🌀 Le Léviathan ouvre ses mâchoires temporelles...[/bold green]")
+    ingestor.ingerer_flux(flux, max_entries_per_feed=max_entries)
+
+    console.print("\n[bold cyan]📊 Résumé de la digestion :[/bold cyan]")
+    console.print(f"Nouvelles entités digérées : {ingestor.nb_nouvelles}")
+    console.print(f"Mugissements déclenchés : {ingestor.nb_mugissements}")
+    console.print(f"Entités totales en base : {len(db.obtenir_toutes_entites())}")
+    console.print(f"Paradoxes actifs détectés : {len(tisserand.detecter_paradoxes())}")
 
 def filtrer_entites(entites: List[EntiteOntique], args) -> List[EntiteOntique]:
     resultat = entites
@@ -409,6 +438,8 @@ Exemples d'utilisation :
   %(prog)s --mode cli --export-timewave tw.svg     Exporter la TimeWave en SVG
   %(prog)s --mode cli --export-rapport data.json   Exporter un rapport complet
   %(prog)s --mode cli --coeur noir --risque-min 4  Filtrer les entités
+  %(prog)s --ingerer                               Ingérer les flux RSS de config.json
+  %(prog)s --ingerer --flux URL --max-entries 5    Ingérer un flux précis
         """
     )
     
@@ -429,6 +460,9 @@ Exemples d'utilisation :
     parser.add_argument("--signaux", action="store_true", help="Détecter les signaux faibles")
     parser.add_argument("--timewave", action="store_true", help="Explorer la courbe TimeWave")
     parser.add_argument("--mugissements", action="store_true", help="Détecter les Mugissements Quantiques")
+    parser.add_argument("--ingerer", action="store_true", help="Ingérer les flux RSS (implique --mode cli)")
+    parser.add_argument("--flux", action="append", metavar="URL", help="URL de flux RSS à ingérer (répétable ; remplace rss_feeds de config.json)")
+    parser.add_argument("--max-entries", type=int, help="Nombre max d'entrées par flux (défaut : rss_max_entries de config.json)")
     
     # Paramètres d'analyse
     parser.add_argument("--seuil-delta", type=float, default=0.7, help="Seuil de Delta pour signaux faibles (défaut: 0.7)")
@@ -466,6 +500,10 @@ def main():
             console.print(f"  {key}: {value}")
         return
     
+    if args.ingerer or args.flux:
+        args.ingerer = True
+        args.mode = "cli"
+
     if args.mode == "gui":
         from ui.gui_dashboard import DashboardLeviathan
         console.print("🖥️ Lancement du Tableau de Bord Quantique...")
@@ -479,6 +517,11 @@ def main():
     
     db, tisserand, timewave, fracturo, entites = initialiser_systeme(config)
     
+    # Ingestion RSS (optionnelle) : puis rechargement des entités pour les analyses suivantes
+    if args.ingerer:
+        ingerer_flux_rss(config, db, fracturo, tisserand, timewave, urls=args.flux, max_entries=args.max_entries)
+        entites = db.obtenir_toutes_entites()
+    
     # Application des filtres
     entites_filtrees = filtrer_entites(entites, args)
     console.print(f"\n[dim]Entités chargées : {len(entites)} | Filtrées : {len(entites_filtrees)}[/]")
@@ -488,7 +531,7 @@ def main():
     
     # Si aucune option spécifique, afficher l'analyse par défaut
     if not any([args.stats, args.cycles, args.signaux, args.timewave, args.mugissements, 
-               args.export_graphe, args.export_timewave, args.export_rapport]):
+               args.export_graphe, args.export_timewave, args.export_rapport, args.ingerer]):
         args.stats = True
         args.mugissements = True
     

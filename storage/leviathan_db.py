@@ -1,6 +1,7 @@
 import sqlite3
 import json
 import os
+from datetime import datetime
 from typing import List
 from core.ontology import EntiteOntique
 
@@ -34,6 +35,15 @@ class LeviathanDB:
                 CREATE TABLE IF NOT EXISTS liens_temporels (
                     source TEXT, cible TEXT, force REAL, type TEXT,
                     PRIMARY KEY (source, cible, type)
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS alertes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    entite_id TEXT,
+                    type TEXT,
+                    message TEXT,
+                    timestamp TEXT
                 )
             """)
             conn.commit()
@@ -95,4 +105,45 @@ class LeviathanDB:
     def obtenir_liens(self):
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute("SELECT source, cible, force, type FROM liens_temporels")
+            return cursor.fetchall()
+
+    def sauvegarder_entite(self, entite: EntiteOntique):
+        """Insère ou met à jour une entité (UPSERT)"""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("""
+                INSERT INTO entites
+                (id, nom, description, date_debut, date_fin, classe, coeur,
+                 delta_avant, delta_pendant, delta_apres, risque, runes, paleo_memes, couches)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    nom=excluded.nom, description=excluded.description,
+                    date_debut=excluded.date_debut, date_fin=excluded.date_fin,
+                    classe=excluded.classe, coeur=excluded.coeur,
+                    delta_avant=excluded.delta_avant, delta_pendant=excluded.delta_pendant,
+                    delta_apres=excluded.delta_apres, risque=excluded.risque,
+                    runes=excluded.runes, paleo_memes=excluded.paleo_memes, couches=excluded.couches
+            """, (
+                entite.id, entite.nom, entite.description, entite.date_debut, entite.date_fin,
+                entite.classe_principale, entite.coeur_dominant,
+                entite.delta_avant, entite.delta_pendant, entite.delta_apres, entite.risque,
+                ",".join(entite.fragments_runiques), ",".join(entite.paleo_memes),
+                ",".join(map(str, entite.couches_osi))
+            ))
+            conn.commit()
+
+    def sauvegarder_alerte(self, entite_id: str, type_alerte: str, message: str):
+        """Insère une alerte (la table est créée à l'initialisation de la base)"""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("""
+                INSERT INTO alertes (entite_id, type, message, timestamp)
+                VALUES (?, ?, ?, ?)
+            """, (entite_id, type_alerte, message, datetime.now().isoformat()))
+            conn.commit()
+
+    def obtenir_alertes(self, limite: int = 20):
+        """Retourne les dernières alertes : (id, entite_id, type, message, timestamp)"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute(
+                "SELECT id, entite_id, type, message, timestamp FROM alertes ORDER BY id DESC LIMIT ?",
+                (limite,))
             return cursor.fetchall()

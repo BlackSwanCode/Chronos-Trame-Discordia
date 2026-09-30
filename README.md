@@ -180,7 +180,9 @@ Chronos-Trame-main/
 │   ├── ontology.py            # 36 l. Dataclass EntiteOntique : le modèle central
 │   ├── fracturo_engine.py     # 45 l. Runes, mèmes, génération de prophéties
 │   ├── temporal_graph.py      # 32 l. Graphe orienté, détection de paradoxes, "guérison"
-│   └── timewave.py            # 36 l. Courbe de nouveauté (TimeWave simplifié)
+│   ├── timewave.py            # 36 l. Courbe de nouveauté (TimeWave simplifié)
+│   ├── rss_ingestor.py        # Ingestion RSS → EntiteOntique, tissage rétrocausal, Mugissement
+│   └── webhook_notifier.py    # Alerte Omega vers un webhook Discord (silencieux si non configuré)
 ├── storage/
 │   ├── __init__.py            #   (vide)
 │   └── leviathan_db.py        # 62 l. Persistance SQLite + import du corpus JSON
@@ -1066,3 +1068,46 @@ Classées par rapport coût/valeur, en s'appuyant sur ce qui existe déjà :
 ---
 
 *README généré à partir de l'analyse du code source (20 fichiers, ~430 lignes de Python) ; chaque exemple a été exécuté sur Python 3.12.3 avec `rich`, `networkx`, `matplotlib`, `numpy` et un tkinter fonctionnel (via Xvfb).*
+
+---
+
+## 14. Ingestion RSS et alertes Discord
+
+Deux modules ajoutés : `core/rss_ingestor.py` (le « cycle de digestion ») et `core/webhook_notifier.py`.
+
+### Utilisation
+
+```bash
+pip install -r requirements.txt
+python main.py --ingerer                                   # flux de data/config.json
+python main.py --ingerer --flux https://exemple.org/rss    # flux ponctuel (option répétable)
+python main.py --ingerer --max-entries 5 --stats --cycles  # ingestion puis analyses
+```
+
+`--ingerer` force le mode CLI. Les entités ingérées sont persistées dans `leviathan.db` (ID = hash du titre + date : un second passage ne crée pas de doublon), puis incluses dans les analyses de la même exécution.
+
+### Fonctionnement
+
+1. Chaque item de flux devient une `EntiteOntique` (classe `IR`). Un classifieur heuristique à mots-clés (`TRIGGERS_NOIR` / `TRIGGERS_BLANC`) fixe le cœur, le delta et le risque.
+2. Enrichissement `FracturoEngine` : runes du titre, paléo-mèmes de la description.
+3. **Tissage rétrocausal** : si une entité plus ancienne partage un paléo-mème, ou est déjà « noire », un lien rétrocausal (nouvelle ➜ ancienne) est tissé, avec un lien causal de retour (ancienne ➜ nouvelle) pour fermer la boucle. Les deux liens sont persistés dans `liens_temporels`.
+4. **Mugissement** : si l'entité est noire, appartient à un cycle et tombe sur un pic de nouveauté TimeWave, l'alerte est affichée, envoyée à Discord, enregistrée dans la table `alertes`, puis `appliquer_guérison_quantique` corrompt le cycle (et la base est mise à jour).
+
+### Configuration (`data/config.json`)
+
+```json
+{
+  "db_path": "leviathan.db",
+  "corpus_path": "data/bdo_corpus_sample.json",
+  "timewave_zero_date": "2012-12-21",
+  "discord_webhook_url": "",
+  "rss_feeds": ["https://www.science-et-vie.com/rss", "https://www.futura-sciences.com/rss/actualites.xml"],
+  "rss_max_entries": 10
+}
+```
+
+Pour ne pas écrire l'URL du webhook dans un fichier versionné, utilisez plutôt la variable d'environnement `CHRONOS_TRAME_WEBHOOK_URL` (utilisée si `discord_webhook_url` est vide). Sans URL, le notifier reste silencieux.
+
+### Nouvelles méthodes de `LeviathanDB`
+
+`sauvegarder_entite` (UPSERT complet), `sauvegarder_alerte`, `obtenir_alertes` ; la table `alertes` est créée avec les autres tables.
