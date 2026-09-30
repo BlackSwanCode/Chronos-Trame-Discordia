@@ -5,7 +5,9 @@
   "discord_webhook_url": "",
   "rss_feeds": [
     "https://www.science-et-vie.com/rss",
-    "https://www.futura-sciences.com/rss/actualites.xml"
+    "https://www.futura-sciences.com/rss/actualites.xml",
+    "https://www.futura-sciences.com/rss/espace/actualites.xml",
+    "https://www.futura-sciences.com/rss/terre/actualites.xml"
   ],
-  "rss_max_entries": 10
+  "rss_max_entries": 20
 }
