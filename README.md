@@ -2,9 +2,9 @@
 
 > *"Le temps n'est pas une ligne, c'est une toile d'araignée dont nous sommes à la fois la mouche et l'architecte."* — Codex MTT-2075
 
-Une chimère logicielle fusionnant la détection de signaux faibles, la taxonomie des anomalies, la topologie des paradoxes temporels et la courbe de nouveauté fractale.
+Une chimère logicielle fusionnant la détection de signaux faibles, la taxonomie des anomalies, la topologie des paradoxes temporels et la courbe de nouveauté fractale. Le Léviathan peut désormais **digérer des flux RSS**, tisser ses propres paradoxes et **alerter un salon Discord** lorsqu'un Mugissement Quantique se produit.
 
-Ce document est à la fois **la référence technique** du dépôt (architecture, modèle de données, API de chaque module) et **un tutoriel pas à pas** (installer, lancer, étendre). Tous les extraits de code et toutes les sorties affichées ont été **exécutés et vérifiés** sur Python 3.12.
+Ce document est à la fois **la référence technique** du dépôt (architecture, modèle de données, API de chaque module) et **un tutoriel pas à pas** (installer, lancer, étendre). Les chiffres et sorties donnés ont été **exécutés sur Python 3.12** ; les rares points non vérifiés (flux web réels, webhook Discord réel, GUI) sont signalés comme tels.
 
 ---
 
@@ -28,37 +28,41 @@ Ce document est à la fois **la référence technique** du dépôt (architecture
 
 ## 1. Nature du projet et état d'implémentation
 
-Chronos-Trame est un projet **expérimental et créatif** (~430 lignes de Python) : il emprunte son vocabulaire à la fiction spéculative et à la théorie du *Timewave Zero* (Terence McKenna), et l'implémente sous forme de **modèle stylisé**. La table de nouveauté est une approximation simplifiée (voir §8.4) : elle produit un signal reproductible, pas une prédiction.
+Chronos-Trame est un projet **expérimental et créatif** (~1 300 lignes de Python) : il emprunte son vocabulaire à la fiction spéculative et à la théorie du *Timewave Zero* (Terence McKenna), et l'implémente sous forme de **modèle stylisé**. La table de nouveauté est une approximation simplifiée (voir §8.4) : elle produit un signal reproductible, pas une prédiction.
 
 ### Les 4 piliers
 
 | # | Pilier | Rôle | Module |
 |---|--------|------|--------|
-| 1 | **Trame** | Détection de signaux, traduction en *FracturoScript* (runes) et repérage de *mèmes* | `core/fracturo_engine.py` |
+| 1 | **Trame** | Détection de signaux, traduction en *FracturoScript* (runes) et repérage de *mèmes* | `core/fracturo_engine.py`, `core/rss_ingestor.py` |
 | 2 | **BDO** | Classification ontique (Cœurs Noir/Gris/Blanc, Delta) | `core/ontology.py`, `storage/leviathan_db.py` |
 | 3 | **TemporalNetwork** | Détection des cycles rétrocausaux (paradoxes) | `core/temporal_graph.py` |
 | 4 | **TimeWave Zero** | Courbe de nouveauté et superposition des événements | `core/timewave.py` |
 
-### Le « Mugissement Quantique » (concept)
+### Le « Mugissement Quantique »
 
-Si un signal faible (Trame) de cœur Noir crée un cycle dans le graphe (Paradoxe) lors d'un pic de nouveauté (TimeWave), le système émet une alerte visuelle et narrative critique.
+Si un signal de cœur **Noir** crée un cycle dans le graphe (**Paradoxe**) lors d'un **pic de nouveauté** (TimeWave), le système émet une alerte critique. Deux chemins y mènent :
 
-### ⚠️ Ce qui est réellement câblé aujourd'hui
+- **À l'ingestion** (`--ingerer`) : chaque nouvel item RSS est testé au moment où il est digéré. L'alerte est affichée, **envoyée à Discord** (si configuré), **enregistrée en base** (table `alertes`), puis la « guérison quantique » corrompt le cycle.
+- **En analyse** (`--mugissements`) : relecture de tout le graphe stocké, sans effet de bord.
 
-C'est le point le plus important à connaître avant de plonger dans le code : **les briques existent, mais leur assemblage final est encore une démo**.
+### État réel des fonctionnalités
 
 | Fonctionnalité | État | Détail |
 |---|---|---|
-| Chargement du corpus JSON → SQLite | ✅ Fonctionnel | Idempotent (`INSERT OR IGNORE`) |
-| Traduction en runes / détection de mèmes | ✅ Fonctionnel | Calculé dans `main.py`, **non persisté** |
-| Détection de cycles (paradoxes) | ✅ Fonctionnel | Basée sur `nx.simple_cycles` |
-| Courbe de nouveauté TimeWave | ✅ Fonctionnel | Modèle simplifié |
-| Dashboard GUI (graphe + courbe) | ✅ Fonctionnel | Nécessite `tkinter` et un écran |
-| Mode CLI « Oracle » | 🟡 Démo | 3 signaux **codés en dur**, indépendants de la DB et du graphe |
-| Alerte Mugissement (condition noir + cycle + pic) | 🟡 Non câblée | La fonction d'affichage existe ; la condition combinée est à écrire (→ [Tuto 4](#tuto-4--implémenter-le-vrai-mugissement-quantique)) |
-| `config.json` | 🔴 Jamais lu | Chemins codés en dur dans `main.py` (→ [Tuto 7](#tuto-7--brancher-configjson)) |
-| Flux RSS (`feedparser`) | 🔴 Non implémenté | Dépendance listée mais jamais importée |
-| Guérison quantique, prophéties, pic de nouveauté | 🟡 Disponibles, jamais appelées | Méthodes prêtes à l'emploi (→ Tutos 3 et 4) |
+| Chargement du corpus JSON → SQLite | ✅ | Idempotent (`INSERT OR IGNORE`) |
+| Runes, mèmes | ✅ | Calculés et **persistés** (colonnes `runes`, `paleo_memes`) |
+| Liens temporels | ✅ | Table `liens_temporels` lue au démarrage, écrite par l'ingestion |
+| Détection de cycles (paradoxes) | ✅ | `nx.simple_cycles` |
+| Courbe TimeWave, pics de nouveauté | ✅ | Modèle simplifié |
+| CLI d'analyse (`stats`, `cycles`, `signaux`, `timewave`, `mugissements`) | ✅ | `main.py`, avec filtres |
+| Exports PNG/SVG/PDF/JPG + rapport JSON | ✅ | Sans écran (backend `Agg`) |
+| `config.json` | ✅ | Lu par `main.py` (créé avec des valeurs par défaut s'il manque) |
+| **Ingestion RSS** | ✅ 🆕 | `core/rss_ingestor.py` ; **non testée sur des flux web réels** par l'auteur de cette doc (testée sur flux local) |
+| **Alerte Discord** | ✅ 🆕 | `core/webhook_notifier.py` ; envoi réel **non vérifié** (échec réseau et mode silencieux vérifiés) |
+| Dashboard GUI (graphe + courbe) | ✅ | Nécessite `tkinter` et un écran ; non relancé pour cette mise à jour |
+| `ui/cli_oracle.py` (`simuler_veille_trame`) | 🟡 Legacy | Démo à signaux codés en dur ; **n'est plus appelée par `main.py`** |
+| `generer_prophetie` | 🟡 | Disponible, jamais appelée |
 
 ---
 
@@ -66,15 +70,16 @@ C'est le point le plus important à connaître avant de plonger dans le code : *
 
 ### Prérequis
 
-- **Python 3.8+** (testé avec 3.12.3 ; `dataclasses` et les f-strings imposent au minimum 3.7).
-- **tkinter** pour le mode GUI. C'est un module de la bibliothèque standard, mais il est souvent packagé à part sous Linux.
-- Un terminal **UTF-8** (les runes, les emojis et les tableaux `rich` utilisent Unicode).
+- **Python 3.8+** (testé avec 3.12.3).
+- **tkinter** pour le mode GUI uniquement (souvent packagé à part sous Linux).
+- Un terminal **UTF-8** (runes, emojis et tableaux `rich` utilisent Unicode).
+- Un accès réseau pour l'ingestion RSS et les alertes Discord (l'analyse locale n'en a pas besoin).
 
 ### Installation pas à pas
 
 ```bash
 # 1. Récupérer le dépôt (ou décompresser l'archive)
-unzip Chronos-Trame-main.zip && cd Chronos-Trame-main
+unzip Chronos-Trame-Discordia-main-v2.zip && cd Chronos-Trame-Discordia-main
 
 # 2. Créer un environnement virtuel (recommandé)
 python3 -m venv .venv
@@ -84,17 +89,15 @@ source .venv/bin/activate          # Windows PowerShell : .venv\Scripts\Activate
 pip install -r requirements.txt
 ```
 
-> **Note.** `requirements.txt` liste `feedparser`, mais le code ne l'importe nulle part pour l'instant. Le `pip install rich networkx matplotlib numpy` de l'ancien README suffit pour tout exécuter ; installer `feedparser` est inoffensif et prépare l'évolution RSS (§13).
-
 | Paquet | Usage réel dans le code |
 |---|---|
-| `rich` | Tableaux et panneaux du mode CLI (`ui/cli_oracle.py`) |
-| `networkx` | Graphe orienté et détection de cycles (`core/temporal_graph.py`), dessin dans le GUI |
-| `matplotlib` | Graphiques du dashboard (backend `TkAgg`) |
+| `rich` | Tableaux, panneaux et couleurs de la console (`main.py`, `core/rss_ingestor.py`) |
+| `networkx` | Graphe orienté et détection de cycles ; dessin du graphe |
+| `matplotlib` | Dashboard GUI (backend `TkAgg`) et exports d'images (backend `Agg`) |
 | `numpy` | Sinusoïde et percentile de la courbe TimeWave |
-| `feedparser` | ❌ Non utilisé |
+| `feedparser` | 🆕 Lecture des flux RSS/Atom (`core/rss_ingestor.py`) |
 
-Aucune version n'est épinglée : pour un environnement reproductible, faites un `pip freeze > requirements.lock` après installation.
+Le webhook Discord n'ajoute **aucune dépendance** : il utilise `urllib` de la bibliothèque standard. Aucune version n'est épinglée : pour un environnement reproductible, faites un `pip freeze > requirements.lock`.
 
 ### Installer tkinter (GUI uniquement)
 
@@ -104,8 +107,6 @@ Aucune version n'est épinglée : pour un environnement reproductible, faites un
 | Fedora | `sudo dnf install python3-tkinter` |
 | macOS (Homebrew) | `brew install python-tk` |
 | Windows | Inclus avec l'installeur python.org (case « tcl/tk and IDLE ») |
-
-Vérification :
 
 ```bash
 python3 -c "import tkinter; print('tkinter OK')"
@@ -118,49 +119,60 @@ python3 -c "import tkinter; print('tkinter OK')"
 **Toujours lancer depuis la racine du dépôt** : tous les chemins (`leviathan.db`, `data/…`) sont relatifs au répertoire courant (§10).
 
 ```bash
-python main.py --mode cli    # Terminal de l'Oracle (aucun écran requis)
-python main.py --mode gui    # Tableau de bord visuel (défaut si --mode omis)
+python main.py --mode cli                 # Analyse par défaut : statistiques + Mugissements
+python main.py --mode gui                 # Tableau de bord visuel (défaut si --mode omis)
+python main.py --ingerer                  # 🆕 Digère les flux RSS de data/config.json
 ```
 
-### Ce que vous verrez en mode CLI
+### Toutes les options de `main.py`
 
-```text
-🌀 Éveil du Léviathan Ontique...
-🌀 Initialisation du Métier à Tisser Quantique...
-Écoute des flux RSS et calcul des résonances TimeWave...
+| Catégorie | Option | Effet |
+|---|---|---|
+| Interface | `--mode {cli,gui}` | Interface à utiliser (défaut : `gui`) |
+| Config | `--config` | Affiche la configuration actuelle puis quitte |
+| | `--set-zero-date YYYY-MM-DD` | Change la date zéro de la TimeWave (persistée dans `config.json`) |
+| Filtres | `--coeur {noir,gris,blanc}` | Filtre par cœur |
+| | `--classe X` | Filtre par classe (`RM`, `IR`, `ESC`…) |
+| | `--risque-min N` | Risque minimum |
+| | `--date-debut` / `--date-fin` | Bornes `YYYY-MM-DD` sur `date_debut` |
+| Analyses | `--stats` | Répartition par cœur et classe, taille du graphe |
+| | `--cycles` | Liste détaillée des cycles (paradoxes) |
+| | `--signaux` | Score de « signal faible » par entité |
+| | `--timewave` | Top pics/creux et statistiques de la courbe |
+| | `--mugissements` | Détection des Mugissements Quantiques |
+| Paramètres | `--seuil-delta F` | Seuil de delta des signaux faibles (défaut `0.7`) |
+| | `--seuil-pic N` | ⚠️ Accepté mais **sans effet** (le percentile 90 est fixe, §10) |
+| | `--annee-debut` / `--annee-fin` | Fenêtre de la courbe (défaut `1950` → `2032`) |
+| | `--top-n N` | Nombre de lignes des classements (défaut `10`) |
+| Exports | `--export-graphe PATH` | Graphe des paradoxes (`png`, `svg`, `pdf`, `jpg`, selon l'extension) |
+| | `--export-timewave PATH` | Courbe de nouveauté |
+| | `--export-rapport PATH` | Rapport JSON complet |
+| | `--theme {dark,light}` | Thème des exports (défaut `dark`) |
+| **Ingestion** 🆕 | `--ingerer` | Ingère les flux RSS puis poursuit les analyses demandées (**force le mode CLI**) |
+| | `--flux URL` | Flux à ingérer (**répétable**) ; remplace `rss_feeds` ; accepte aussi un chemin de fichier local |
+| | `--max-entries N` | Entrées max par flux (défaut : `rss_max_entries`) |
 
-┏━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━┳━━━━━━━┓
-┃ Timestamp ┃ Signal                           ┃ Cœur ┃ Runes ┃
-┡━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━╇━━━━━━━┩
-│ 13:23:53  │ Anomalie magnétique en Normandie │ GRIS │ ᛏ ᚱ ᛞ │
-└───────────┴──────────────────────────────────┴──────┴───────┘
-... tissage du fil narratif ...
+Sans aucune option d'analyse, le mode CLI exécute `--stats` et `--mugissements`. Avec `--ingerer` seul, seul le résumé de digestion est affiché.
 
-  (…le 2e signal, de cœur NOIR, déclenche le panneau ci-dessous…)
-
-╭────────────────────────────────────────────────────────────────────────╮
-│ ⚠️ MUGISSEMENT QUANTIQUE DÉTECTÉ AUX FRONTIÈRES DE L'INTRICATION ⚠️    │
-│                                                                        │
-│ Entité déclencheuse : Effacement mémoriel collectif signalé à Montréal │
-│ FracturoScript résonant : ᚦᚦ ᛟ •••                                     │
-│ Boucle rétrocausale fermée : 2026_Event -> 1944_Volknar -> 2026_Event  │
-│                                                                        │
-│ Le Delta s'effondre. Le passé a été réécrit. Le Léviathan s'éveille.   │
-╰────────────────────────────────────────────────────────────────────────╯
+```bash
+python main.py --mode cli --stats --cycles
+python main.py --mode cli --coeur noir --risque-min 4 --signaux
+python main.py --mode cli --export-graphe graphe.png --export-timewave tw.svg --theme light
+python main.py --ingerer --flux https://exemple.org/rss --max-entries 5 --cycles
 ```
 
 ### Ce que vous verrez en mode GUI
 
 Une fenêtre 1200×800 à thème sombre avec **deux onglets** :
 
-1. **🕸️ Graphe des Âges (Paradoxes)** : le graphe orienté des entités. Nœud rouge = cœur *noir*, blanc = *blanc*, gris = tout le reste. Les arêtes appartenant à un cycle sont surlignées en cyan.
-2. **🌊 Onde de Nouveauté (TimeWave Zero)** : la courbe de nouveauté de 1950 à ~2032, avec un point par entité du corpus (rouge = noir, blanc = autre).
+1. **🕸️ Graphe des Âges (Paradoxes)** : graphe orienté des entités, étiquetées par leur **nom**. Nœud rouge = cœur *noir*, blanc = *blanc*, gris = autre. Les arêtes d'un cycle sont surlignées en cyan.
+2. **🌊 Onde de Nouveauté (TimeWave Zero)** : courbe de 1950 à ~2032 avec un point par entité (**20 au maximum**).
 
-Avec le corpus d'exemple, le graphe montre un unique nœud `demo_001` avec une **boucle sur lui-même** : c'est le paradoxe artificiel créé par `main.py` (§8.7).
+Le graphe reflète les liens stockés en base : avec le seul corpus d'exemple (une entité, aucun lien), il n'affiche **aucun paradoxe**. Le GUI n'ingère pas de flux : lancez d'abord `--ingerer`, puis `--mode gui`.
 
 ### Premier lancement : ce qui se passe sur le disque
 
-Au premier lancement, `main.py` crée `leviathan.db` (SQLite, ~16 Ko) **dans le répertoire courant**, y insère le corpus, puis le réutilise aux lancements suivants. Pensez à l'ajouter à votre `.gitignore` :
+`main.py` crée `leviathan.db` (SQLite) **dans le répertoire courant**, y insère le corpus, calcule et enregistre les runes/mèmes, puis réutilise la base aux lancements suivants. Ajoutez-la à votre `.gitignore` :
 
 ```bash
 echo "leviathan.db" >> .gitignore
@@ -171,31 +183,32 @@ echo "leviathan.db" >> .gitignore
 ## 4. Arborescence du dépôt
 
 ```text
-Chronos-Trame-main/
-├── main.py                    # 58 l. Point d'entrée : args CLI, câblage des moteurs, lancement UI
-├── requirements.txt           # Dépendances (non épinglées)
+Chronos-Trame-Discordia-main/
+├── main.py                    # 584 l. Point d'entrée : config, filtres, analyses, exports, ingestion
+├── requirements.txt           # rich, networkx, matplotlib, numpy, feedparser (non épinglées)
 ├── README.md
-├── core/                      # Logique métier pure (aucune E/S)
+├── core/                      # Logique métier
 │   ├── __init__.py            #   (vide)
-│   ├── ontology.py            # 36 l. Dataclass EntiteOntique : le modèle central
-│   ├── fracturo_engine.py     # 45 l. Runes, mèmes, génération de prophéties
-│   ├── temporal_graph.py      # 32 l. Graphe orienté, détection de paradoxes, "guérison"
-│   ├── timewave.py            # 36 l. Courbe de nouveauté (TimeWave simplifié)
-│   ├── rss_ingestor.py        # Ingestion RSS → EntiteOntique, tissage rétrocausal, Mugissement
-│   └── webhook_notifier.py    # Alerte Omega vers un webhook Discord (silencieux si non configuré)
+│   ├── ontology.py            #  36 l. Dataclass EntiteOntique : le modèle central
+│   ├── fracturo_engine.py     #  47 l. Runes, mèmes, génération de prophéties
+│   ├── temporal_graph.py      #  32 l. Graphe orienté, détection de paradoxes, "guérison"
+│   ├── timewave.py            #  36 l. Courbe de nouveauté (TimeWave simplifié)
+│   ├── rss_ingestor.py        # 207 l. 🆕 RSS → EntiteOntique, tissage rétrocausal, Mugissement
+│   └── webhook_notifier.py    #  74 l. 🆕 Alerte Omega → webhook Discord (silencieux si non configuré)
 ├── storage/
 │   ├── __init__.py            #   (vide)
-│   └── leviathan_db.py        # 62 l. Persistance SQLite + import du corpus JSON
+│   └── leviathan_db.py        # 149 l. Persistance SQLite : entités, liens, alertes, import du corpus
 ├── ui/
 │   ├── __init__.py            #   (vide)
-│   ├── cli_oracle.py          # 52 l. Interface terminal (rich) : mode démo
-│   └── gui_dashboard.py       # 106 l. Dashboard tkinter + matplotlib
+│   ├── cli_oracle.py          #  52 l. Démo terminal legacy (non appelée par main.py)
+│   └── gui_dashboard.py       # 104 l. Dashboard tkinter + matplotlib
 └── data/
-    ├── bdo_corpus_sample.json # 1 entité d'exemple (format du corpus BDO)
-    └── config.json            # Chemins et date zéro (⚠️ non lu par le code)
+    ├── bdo_corpus_sample.json # 1 entité d'exemple (corpus chargé par défaut)
+    ├── BDO2.json              # 1,6 Mo, 1 183 entrées : corpus BDO complet (à activer via corpus_path)
+    └── config.json            # db_path, corpus_path, date zéro, webhook Discord, flux RSS
 ```
 
-**Convention de nommage observée :** identifiants, docstrings et commentaires en **français** ; noms de méthodes en `snake_case` (y compris avec accent : `appliquer_guérison_quantique`, valide en Python 3).
+**Convention de nommage :** identifiants, docstrings et commentaires en **français** ; noms de méthodes en `snake_case` (y compris avec accent : `appliquer_guérison_quantique`).
 
 ---
 
@@ -207,31 +220,38 @@ Chronos-Trame-main/
 flowchart TD
     main["main.py<br/>(orchestrateur)"]
 
-    subgraph core["core/ — logique pure"]
+    subgraph core["core/"]
         onto["ontology.py<br/>EntiteOntique"]
         fract["fracturo_engine.py<br/>FracturoEngine"]
         graph["temporal_graph.py<br/>TisserandTemporal"]
         tw["timewave.py<br/>TimeWaveZero"]
+        rss["rss_ingestor.py<br/>RSSIngestor"]
+        hook["webhook_notifier.py<br/>DiscordNotifier"]
     end
 
     subgraph storage["storage/"]
         db["leviathan_db.py<br/>LeviathanDB"]
     end
 
-    subgraph ui["ui/"]
-        cli["cli_oracle.py<br/>simuler_veille_trame"]
-        gui["gui_dashboard.py<br/>DashboardLeviathan"]
-    end
+    gui["ui/gui_dashboard.py<br/>DashboardLeviathan"]
 
-    corpus[("bdo_corpus_sample.json")]
+    corpus[("bdo_corpus_sample.json<br/>BDO2.json")]
     sqlite[("leviathan.db")]
+    feeds(("Flux RSS"))
+    discord(("Discord"))
 
     main --> db
     main --> fract
     main --> graph
     main --> tw
-    main --> cli
+    main --> rss
     main --> gui
+
+    rss --> db
+    rss --> fract
+    rss --> graph
+    rss --> tw
+    rss --> hook
 
     fract --> onto
     graph --> onto
@@ -239,68 +259,76 @@ flowchart TD
 
     corpus -->|"charger_corpus_bdo()"| db
     db <--> sqlite
+    feeds -->|"feedparser"| rss
+    hook -->|"HTTP POST"| discord
 
-    gui -.->|"duck typing :<br/>db, graph, tw"| db
+    gui -.->|"duck typing"| db
     gui -.-> graph
     gui -.-> tw
 ```
 
-`ontology.py` est le **socle** : `fracturo_engine`, `temporal_graph` et `leviathan_db` importent tous `EntiteOntique`. L'interface GUI ne fait aucun import depuis `core`/`storage` : elle reçoit ses trois moteurs en paramètres (injection de dépendances).
+`ontology.py` est le **socle** : `fracturo_engine`, `temporal_graph` et `leviathan_db` importent tous `EntiteOntique`. `rss_ingestor` est le seul module qui orchestre tous les moteurs ; il est importé **à la demande** (seulement avec `--ingerer`), donc `feedparser` n'est requis que pour l'ingestion. Le GUI reçoit ses moteurs en paramètres (injection de dépendances).
 
-### Séquence exécutée par `main.py`
+### Séquence d'une exécution `main.py --ingerer`
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant M as main.py
     participant DB as LeviathanDB
-    participant F as FracturoEngine
     participant G as TisserandTemporal
-    participant UI as CLI ou GUI
+    participant I as RSSIngestor
+    participant D as Discord
 
-    M->>DB: LeviathanDB("leviathan.db")  (crée les tables)
-    M->>M: crée data/bdo_corpus_sample.json s'il est absent
-    M->>DB: charger_corpus_bdo(json)  (INSERT OR IGNORE)
+    M->>DB: charger_corpus_bdo(corpus)  (INSERT OR IGNORE)
     M->>DB: obtenir_toutes_entites()
-    DB-->>M: List[EntiteOntique]
     loop pour chaque entité
         M->>G: ajouter_entite(ent)
-        M->>F: traduire_en_runes(ent.nom) puis split('•')
-        M->>F: detecter_meme(ent.description)
-        Note over M: résultats stockés sur l'objet, en mémoire seulement
+        M->>DB: sauvegarder_attributs_calcules(ent)  (runes, mèmes)
     end
-    M->>G: tisser_lien(id0, id0, 0.9, "retrocausal")  (paradoxe de démo)
-    alt --mode cli
-        M->>UI: simuler_veille_trame()  (n'utilise ni DB ni graphe)
-    else --mode gui
-        M->>UI: DashboardLeviathan(db, tisserand, timewave).run()
+    M->>DB: obtenir_liens()
+    M->>G: tisser_lien(...) pour chaque lien stocké
+    M->>I: ingerer_flux(urls, max_entries)
+    loop pour chaque item nouveau
+        I->>I: classifier (mots-clés) → cœur, delta, risque
+        I->>G: ajouter_entite + tisser boucle rétrocausale
+        I->>DB: sauvegarder_entite + sauvegarder_lien (x2)
+        alt cœur noir ET cycle ET pic TimeWave
+            I->>D: embed "MUGISSEMENT QUANTIQUE" (si URL configurée)
+            I->>DB: sauvegarder_alerte(...)
+            I->>G: appliquer_guérison_quantique(cycle)
+            I->>DB: sauvegarder_entite (tout le cycle)
+        end
     end
+    M->>DB: obtenir_toutes_entites()
+    Note over M: puis les analyses demandées (--stats, --cycles, ...)
 ```
 
 ---
 
 ## 6. Glossaire du domaine
 
-Les termes ci-dessous sont **déduits du code et de l'ancien README** ; ceux qui ne sont pas exploités par le code sont signalés.
-
 | Terme | Signification dans le code |
 |---|---|
 | **Trame** | Le tissu narratif/temporel global ; aussi le nom du pilier de détection de signaux. |
 | **BDO** | Base de données d'anomalies (« ontiques ») dont provient le corpus JSON. Le sigle n'est pas développé dans le dépôt. |
-| **Entité ontique** | Un événement/anomalie du corpus, représenté par `EntiteOntique`. |
-| **Classe principale** | Catégorie de taxonomie : `RM`, `IR`, `ESC`, `VMO`, `Omega`… (liste donnée en commentaire, non validée). `NC` = non classé. |
-| **Cœur dominant** | Polarité de l'entité : `"noir"`, `"gris"`, `"blanc"` ou `"NC"`. Pilote les couleurs des UI et la « guérison ». |
-| **Delta** | Amplitude d'une anomalie, en `[0, 1]` dans l'exemple. Trois phases : `avant`, `pendant`, `apres`. (Le « Delta C/R/H » du README n'est pas implémenté.) |
+| **Entité ontique** | Un événement/anomalie (corpus ou item RSS), représenté par `EntiteOntique`. |
+| **Classe principale** | Catégorie de taxonomie : `RM`, `IR`, `ESC`, `VMO`, `Omega`… `NC` = non classé. Les items RSS reçoivent `IR` (Information Réfractaire). |
+| **Cœur dominant** | Polarité : `"noir"`, `"gris"`, `"blanc"` ou `"NC"`. Pilote les couleurs, la détection de Mugissement et la « guérison ». |
+| **Delta** | Amplitude d'une anomalie, en `[0, 1]`. Trois phases : `avant`, `pendant`, `apres`. |
 | **Risque** | Entier de 1 à 5. |
-| **Couches OSI** | `couches_osi: List[int]`. Probablement les couches du modèle OSI ; **champ jamais renseigné ni lu**. |
+| **Couches OSI** | `couches_osi: List[int]`, issu du champ `couches_affectees` du corpus ; stocké mais non exploité par la logique. |
 | **FracturoScript** | Transcription d'un texte en runes (Futhark) : `traduire_en_runes`. |
-| **Paléo-mème** | Mot déclencheur (`oublie`, `boucle`, `effondrement`, `lumière`, `ombre`, `machine`) associé à une séquence de runes. |
+| **Paléo-mème** | Mot déclencheur (`oubli`, `boucle`, `effondrement`, `lumière`, `ombre`, `machine`) associé à une séquence de runes. |
 | **Paradoxe** | Un **cycle** dans le graphe orienté (y compris une auto-boucle). |
-| **Lien causal / rétrocausal** | Arête passé→futur / futur→passé (attribut `type` de l'arête). Seul le *cycle* compte pour la détection ; le type n'est pas interprété. |
-| **Guérison quantique** | Réduction du Delta et passage du cœur à `noir` pour les entités d'un cycle. |
+| **Lien causal / rétrocausal** | Arête passé→futur / futur→passé (attribut `type`). Seul le *cycle* compte pour la détection. |
+| **Tissage rétrocausal** 🆕 | Règle d'ingestion : le nouvel item est relié à une entité plus ancienne (§8.6). |
+| **Guérison quantique** | Delta ÷ 2 (plancher `0.05`) et cœur forcé à `noir` pour les entités d'un cycle. |
 | **Nouveauté** | Valeur de la courbe TimeWave à une date donnée. |
-| **Pic de nouveauté** | Valeur dans le top 10 % (≥ percentile 90) d'un historique fourni. |
-| **Mugissement Quantique** | Alerte critique (panneau rouge) : cœur noir + cycle + pic de nouveauté. |
+| **Pic de nouveauté** | Valeur ≥ percentile 90 d'un historique fourni. |
+| **Mugissement Quantique** | Alerte critique : cœur noir + cycle + pic de nouveauté. |
+| **Alerte Omega** 🆕 | Le message du Mugissement envoyé à Discord et stocké dans la table `alertes`. |
+| **Signal faible** | Entité dont le score (pic +3, noir +2, delta ≥ seuil +2, risque ≥ 4 +1) atteint 3 (`--signaux`). |
 | **Léviathan / Tisserand** | Noms de fantaisie : `LeviathanDB` (base), `TisserandTemporal` (graphe), `DashboardLeviathan` (GUI). |
 
 ---
@@ -309,35 +337,32 @@ Les termes ci-dessous sont **déduits du code et de l'ancien README** ; ceux qui
 
 ### 7.1 `EntiteOntique` (`core/ontology.py`)
 
-Dataclass (mutable) représentant une entité. Les 11 premiers champs sont **obligatoires** ; les suivants ont une valeur par défaut.
+Dataclass (mutable). Les 11 premiers champs sont **obligatoires** ; les suivants ont une valeur par défaut.
 
 | Champ | Type | Défaut | Rôle |
 |---|---|---|---|
-| `id` | `str` | requis | Identifiant unique (clé du nœud dans le graphe et clé primaire SQL) |
+| `id` | `str` | requis | Identifiant unique (nœud du graphe, clé primaire SQL) |
 | `nom` | `str` | requis | Libellé affiché |
-| `description` | `str` | requis | Texte analysé pour les mèmes |
+| `description` | `str` | requis | Texte analysé pour les mèmes (200 caractères max en base) |
 | `date_debut` | `str` | requis | Date ISO `YYYY-MM-DD` |
-| `date_fin` | `Optional[str]` | requis | Date de fin (toujours `None` après lecture DB) |
+| `date_fin` | `Optional[str]` | requis | Date de fin (`None` pour les items RSS) |
 | `classe_principale` | `str` | requis | `RM`, `IR`, `ESC`, `VMO`, `Omega`, `NC`… |
 | `coeur_dominant` | `str` | requis | `noir` / `gris` / `blanc` / `NC` |
 | `delta_avant` | `float` | requis | Delta avant l'événement |
 | `delta_pendant` | `float` | requis | Delta pendant (celui que modifie la « guérison ») |
 | `delta_apres` | `float` | requis | Delta après |
 | `risque` | `int` | requis | 1 à 5 |
-| `couches_osi` | `List[int]` | `[]` | Non exploité |
-| `fragments_runiques` | `List[str]` | `[]` | Renseigné par `main.py` |
-| `paleo_memes` | `List[str]` | `[]` | Renseigné par `main.py` |
-| `superposition_active` | `bool` | `False` | Non exploité |
-| `intention_observateur` | `float` | `0.5` | `0.0` (Noir) → `1.0` (Blanc) ; non exploité |
+| `couches_osi` | `List[int]` | `[]` | Couches affectées (corpus) ; non exploité |
+| `fragments_runiques` | `List[str]` | `[]` | Runes du nom, recalculées au démarrage et persistées |
+| `paleo_memes` | `List[str]` | `[]` | Mèmes détectés, recalculés au démarrage et persistés |
+| `superposition_active` | `bool` | `False` | Non exploité (non persisté) |
+| `intention_observateur` | `float` | `0.5` | `0.0` (Noir) → `1.0` (Blanc) ; non exploité (non persisté) |
 
-Membres utiles :
+Membres utiles : `delta_moyen` (propriété, moyenne des trois deltas) et `to_dict()`.
 
-- `delta_moyen` (propriété) : moyenne arithmétique des trois deltas.
-- `to_dict()` : renvoie `{k: v for k, v in self.__dict__.items()}` (copie superficielle des attributs).
+### 7.2 Format du corpus JSON
 
-### 7.2 Format du corpus JSON (`data/bdo_corpus_sample.json`)
-
-Le fichier est une **liste** d'objets :
+Le fichier est une **liste** d'objets. Exemple minimal (`data/bdo_corpus_sample.json`) :
 
 ```json
 [
@@ -354,6 +379,8 @@ Le fichier est une **liste** d'objets :
 ]
 ```
 
+`data/BDO2.json` suit le même schéma, enrichi de champs que l'importeur **ignore** (`lieu`, `statut`, `preuves`, `interpretation_mtt`, `sous_categories`…). Ses `delta_estime` contiennent `avant`, `pendant` et `apres`. Pour l'utiliser : mettre `"corpus_path": "data/BDO2.json"` dans `config.json` (et, de préférence, un autre `db_path`). Voir §10 pour ses particularités.
+
 ### 7.3 Correspondance JSON → SQLite → objet
 
 Tous les champs sont **facultatifs** dans le JSON : `charger_corpus_bdo` applique des valeurs par défaut.
@@ -362,37 +389,48 @@ Tous les champs sont **facultatifs** dans le JSON : `charger_corpus_bdo` appliqu
 |---|---|---|---|
 | `id` | `id` (PK) | `"unknown"` | `id` |
 | `nom` | `nom` | `"Inconnu"` | `nom` |
-| `description` | `description` | `""` — **tronquée à 100 caractères** | `description` |
+| `description` | `description` | `""` — **tronquée à 200 caractères** | `description` |
 | `date_debut` | `date_debut` | `"1970-01-01"` | `date_debut` |
+| `date_fin` | `date_fin` | `NULL` | `date_fin` |
 | `taxonomie.classe_principale` | `classe` | `"NC"` | `classe_principale` |
 | `coeur_dominant` | `coeur` | `"gris"` | `coeur_dominant` |
-| `delta_estime.pendant` | `delta_pendant` | `0.5` | `delta_avant` **=** `delta_pendant` **=** `delta_apres` |
+| `delta_estime.avant` | `delta_avant` | `0.5` | `delta_avant` |
+| `delta_estime.pendant` | `delta_pendant` | `0.5` | `delta_pendant` |
+| `delta_estime.apres` | `delta_apres` | `0.5` | `delta_apres` |
 | `risque` | `risque` | `1` | `risque` |
-| *(aucune)* | `runes` | `""` | `fragments_runiques` |
+| *(calculé)* | `runes` | `""` | `fragments_runiques` |
+| *(calculé)* | `paleo_memes` | `""` | `paleo_memes` |
 | *(aucune)* | `couches` | `""` | `couches_osi` |
 
-> **Perte d'information à l'import.** `delta_estime.avant` et `delta_estime.apres` du JSON sont ignorés ; `date_fin` n'existe pas en base. Deux entrées sans `id` entrent en collision sur `"unknown"` (la seconde est ignorée).
+> **Attention.** Le défaut de `date_debut` ne s'applique que si la **clé est absente** ; une valeur `null` explicite est stockée telle quelle (§10). Deux entrées de même `id` : la seconde est ignorée. `couches_affectees` du JSON n'est **pas** importé (la colonne `couches` reste vide à l'import).
 
 ### 7.4 Schéma SQLite (`leviathan.db`)
 
 ```sql
 CREATE TABLE entites (
-    id TEXT PRIMARY KEY, nom TEXT, description TEXT, date_debut TEXT,
-    classe TEXT, coeur TEXT, delta_pendant REAL, risque INTEGER,
-    runes TEXT, couches TEXT
+    id TEXT PRIMARY KEY, nom TEXT, description TEXT, date_debut TEXT, date_fin TEXT,
+    classe TEXT, coeur TEXT, delta_avant REAL, delta_pendant REAL, delta_apres REAL,
+    risque INTEGER, runes TEXT, paleo_memes TEXT, couches TEXT
 );
 
 CREATE TABLE liens_temporels (
-    source TEXT, cible TEXT, force REAL, type TEXT   -- ⚠️ jamais lue ni écrite par le code
+    source TEXT, cible TEXT, force REAL, type TEXT,
+    PRIMARY KEY (source, cible, type)
+);
+
+CREATE TABLE alertes (            -- 🆕 journal des Mugissements
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    entite_id TEXT, type TEXT, message TEXT, timestamp TEXT
 );
 ```
 
-Pour inspecter la base :
+Les bases créées par d'anciennes versions sont migrées automatiquement (`ALTER TABLE … ADD COLUMN`) ; la table `alertes` est créée si elle manque.
 
 ```bash
-sqlite3 leviathan.db "SELECT id, nom, coeur, delta_pendant FROM entites;"
-# ou, sans le binaire sqlite3 :
-python3 -c "import sqlite3; print(sqlite3.connect('leviathan.db').execute('SELECT * FROM entites').fetchall())"
+sqlite3 leviathan.db "SELECT id, nom, coeur, delta_pendant FROM entites ORDER BY date_debut DESC LIMIT 10;"
+sqlite3 leviathan.db "SELECT timestamp, entite_id, type FROM alertes;"
+# sans le binaire sqlite3 :
+python3 -c "import sqlite3; print(sqlite3.connect('leviathan.db').execute('SELECT * FROM alertes').fetchall())"
 ```
 
 ### 7.5 `data/config.json`
@@ -401,11 +439,26 @@ python3 -c "import sqlite3; print(sqlite3.connect('leviathan.db').execute('SELEC
 {
   "db_path": "leviathan.db",
   "corpus_path": "data/bdo_corpus_sample.json",
-  "timewave_zero_date": "2012-12-21"
+  "timewave_zero_date": "2012-12-21",
+  "discord_webhook_url": "",
+  "rss_feeds": [
+    "https://www.science-et-vie.com/rss",
+    "https://www.futura-sciences.com/rss/actualites.xml"
+  ],
+  "rss_max_entries": 10
 }
 ```
 
-⚠️ **Ce fichier n'est lu par aucun module.** Les mêmes valeurs sont codées en dur dans `main.py` et `TimeWaveZero.__init__`. Le [Tuto 7](#tuto-7--brancher-configjson) montre comment le brancher.
+| Clé | Rôle |
+|---|---|
+| `db_path` | Fichier SQLite |
+| `corpus_path` | Corpus JSON chargé au démarrage |
+| `timewave_zero_date` | Date zéro (modifiable via `--set-zero-date`) |
+| `discord_webhook_url` | URL du webhook Discord ; vide = pas de notification |
+| `rss_feeds` | Flux lus par `--ingerer` (remplacés par `--flux`) |
+| `rss_max_entries` | Entrées max par flux |
+
+Le fichier est créé avec ces valeurs s'il n'existe pas, et fusionné avec elles sinon (une clé absente reprend sa valeur par défaut). ⚠️ **Sécurité** : l'URL d'un webhook Discord est un secret. Évitez de la committer : laissez `discord_webhook_url` vide et utilisez la variable d'environnement `CHRONOS_TRAME_WEBHOOK_URL` (§9, Tuto 7). Attention aussi : `--set-zero-date` réécrit tout `config.json`, URL comprise.
 
 ---
 
@@ -419,54 +472,42 @@ Voir §7.1. Aucune logique, aucune dépendance externe.
 
 **Constantes globales**
 
-- `RUNE_ALPHABET` : dictionnaire lettre minuscule → rune. Couvre `a b c d e f g h i j k l m n o p r s t u w z` et l'espace (→ `•`).
-  - `c` et `k` donnent la **même rune** `ᚲ` (transcription non réversible).
-  - **Absentes** : `q`, `v`, `x`, `y`, ainsi que tous les caractères accentués et la ponctuation.
+- `RUNE_ALPHABET` : lettre minuscule → rune. Couvre `a`–`z` (dont `q`, `v`, `x`, `y`) et l'espace (→ `•`). `c` et `k` donnent la **même rune** `ᚲ` (non réversible). `x` → `ᚲᛋ`, `q` → `ᚲᚹ` (valeurs multi-caractères).
 - `MEMETIC_TRIGGERS` : 6 mots déclencheurs.
 
 | Mot déclencheur | Séquence runique |
 |---|---|
-| `oublie` | `ᛖᛈᛋᛁᛚᛟᚾ` |
+| `oubli` | `ᛖᛈᛋᛁᛚᛟᚾ` |
 | `boucle` | `ᛟᚱᛟᛒᛟᚱᛟ` |
 | `effondrement` | `ᚦᚦᚦ` |
 | `lumière` | `ᛋᛟᚹᛁᛚᛟ` |
 | `ombre` | `ᚾᛁᚺᛏ` |
 | `machine` | `ᛗᛖᚲᚨᚾᛖ` |
 
+**`normalize_text(texte)`** : minuscules + suppression des accents (NFD, catégorie `Mn`). Utilisée par `traduire_en_runes` **et** `detecter_meme`.
+
 **Classe `FracturoEngine`**
 
 | Méthode | Signature | Comportement |
 |---|---|---|
-| `__init__` | `()` | `self.lexique = RUNE_ALPHABET` (**même objet**, pas une copie : modifier `lexique` modifie la constante globale) |
-| `traduire_en_runes` | `(texte: str) -> str` | Ne traite que les **30 premiers caractères**. Chaque lettre est passée en minuscule puis cherchée dans le lexique ; si absente, le caractère **d'origine** est conservé tel quel. |
-| `detecter_meme` | `(texte: str) -> List[str]` | Pour chaque déclencheur présent **comme sous-chaîne** dans `texte.lower()`, ajoute `"DÉCLENCHEUR(runes)"` en majuscules. |
-| `generer_prophetie` | `(entite, paradoxe: bool) -> str` | Renvoie un texte (variante `[ROUGE]` si `paradoxe`, `[CYAN]` sinon). Utilise `entite.fragments_runiques` (sinon traduit le nom) et `entite.paleo_memes`. |
+| `__init__` | `()` | `self.lexique = RUNE_ALPHABET` (**même objet**, pas une copie) |
+| `traduire_en_runes` | `(texte) -> str` | Normalise puis traduit tout le texte (plus de limite de longueur). Les caractères absents du lexique (chiffres, ponctuation, apostrophes) sont conservés tels quels. |
+| `detecter_meme` | `(texte) -> List[str]` | Pour chaque déclencheur présent comme sous-chaîne du texte **normalisé**, ajoute `"DÉCLENCHEUR(runes)"`. Insensible aux accents : `lumiere` et `lumière` déclenchent tous deux `LUMIÈRE`. |
+| `generer_prophetie` | `(entite, paradoxe) -> str` | Texte `[ROUGE]` si `paradoxe`, `[CYAN]` sinon. Jamais appelée par `main.py`. |
 
 Exemples vérifiés :
 
 ```python
 >>> f = FracturoEngine()
 >>> f.traduire_en_runes("Synchronicité de Vauville")
-'ᛋyᚾᚲᚺᚱᛟᚾᛁᚲᛁᛏé•ᛞᛖ•Vᚨᚢvᛁᛚᛚᛖ'          # y, é, V, v non traduits
->>> f.detecter_meme("La boucle de l'oubli dans l'ombre de la machine, "
-...                 "effondrement de la lumière")
-['BOUCLE(ᛟᚱᛟᛒᛟᚱᛟ)', 'EFFONDREMENT(ᚦᚦᚦ)', 'LUMIÈRE(ᛋᛟᚹᛁᛚᛟ)', 'OMBRE(ᚾᛁᚺᛏ)', 'MACHINE(ᛗᛖᚲᚨᚾᛖ)']
-                                          # "oubli" ne déclenche pas "oublie"
+'ᛋᛁᚾᚲᚺᚱᛟᚾᛁᚲᛁᛏᛖ•ᛞᛖ•ᚹᚨᚢᚹᛁᛚᛚᛖ'
+>>> f.traduire_en_runes("Vauville quiz yeux 2026!")
+'ᚹᚨᚢᚹᛁᛚᛚᛖ•ᚲᚹᚢᛁᛉ•ᛁᛖᚢᚲᛋ•2026!'
+>>> f.detecter_meme("La boucle de l'oubli dans l'ombre de la machine, effondrement de la lumière")
+['OUBLI(ᛖᛈᛋᛁᛚᛟᚾ)', 'BOUCLE(ᛟᚱᛟᛒᛟᚱᛟ)', 'EFFONDREMENT(ᚦᚦᚦ)', 'LUMIÈRE(ᛋᛟᚹᛁᛚᛟ)', 'OMBRE(ᚾᛁᚺᛏ)', 'MACHINE(ᛗᛖᚲᚨᚾᛖ)']
 ```
 
-`generer_prophetie` avec le corpus d'exemple :
-
-```text
-paradoxe=True  → ⚠️ [ROUGE] LE TISSEUR SAIGNE : La boucle est fermée. Synchronicité de Vauville
-                 n'est pas un événement, mais la cicatrice d'une rétrocausalité GRIS. Le
-                 FracturoScript résonne : ᛋyᚾᚲᚺᚱᛟᚾᛁᚲᛁᛏéᛞᛖVᚨᚢvᛁᛚᛚᛖ. Le Delta s'effondre vers le Néant.
-paradoxe=False → 🌀 [CYAN] FIL TISSÉ : Synchronicité de Vauville s'inscrit dans la Trame.
-                 Résonance GRIS. Les paléo-mèmes dormant s'éveillent : .
-```
-
-Deux détails à noter : les `•` (séparateurs de mots) disparaissent car les fragments sont recollés avec `"".join(...)`, et la liste des mèmes est vide dans l'exemple, d'où le `: .` final.
-
-`random`, `hashlib` et `Dict` sont importés mais inutilisés.
+Les `•` (séparateurs de mots) disparaissent lorsque les fragments sont recollés avec `"".join(...)` (alertes, rapports).
 
 ### 8.3 `core/temporal_graph.py` : le graphe des paradoxes
 
@@ -475,112 +516,149 @@ Deux détails à noter : les `•` (séparateurs de mots) disparaissent car les 
 | Méthode | Signature | Comportement |
 |---|---|---|
 | `ajouter_entite` | `(entite)` | `add_node(entite.id, data=entite)` |
-| `tisser_lien` | `(id_source, id_cible, force, type_lien="causal")` | `add_edge(..., weight=force, type=type_lien)`. `"retrocausal"` = futur → passé. Un id inconnu est **créé silencieusement** comme nœud vide (sans attribut `data`), ce qui casserait ensuite l'accès `graphe.nodes[id]['data']`. |
-| `detecter_paradoxes` | `() -> List[List[str]]` | `list(nx.simple_cycles(graphe))`. Inclut les **auto-boucles** (cycle d'un seul nœud). |
-| `appliquer_guérison_quantique` | `(cycle: List[str])` | Pour chaque nœud du cycle : `delta_pendant = max(0.05, delta_pendant * 0.5)` et `coeur_dominant = "noir"`. |
+| `tisser_lien` | `(id_source, id_cible, force, type_lien="causal")` | `add_edge(..., weight=force, type=type_lien)`. Un id inconnu est **créé silencieusement** comme nœud vide (sans `data`), ce qui casserait `graphe.nodes[id]['data']`. Ajoutez toujours les nœuds avant les liens. |
+| `detecter_paradoxes` | `() -> List[List[str]]` | `list(nx.simple_cycles(graphe))`. Inclut les auto-boucles. |
+| `appliquer_guérison_quantique` | `(cycle)` | Pour chaque nœud : `delta_pendant = max(0.05, delta_pendant * 0.5)` et `coeur_dominant = "noir"`. |
 
-Points d'attention :
-
-- L'**ordre des nœuds** dans un cycle renvoyé n'est pas garanti ; ne comptez pas sur `cycle[0]`.
-- `nx.simple_cycles` peut être coûteux (exponentiel dans le pire cas) sur de gros graphes denses.
-- La force (`weight`) et le type du lien ne sont pas pris en compte par la détection.
-- `appliquer_guérison_quantique` est **destructrice et non idempotente** : chaque appel divise à nouveau le delta par deux (jusqu'au plancher de `0.05`).
+Points d'attention : l'**ordre des nœuds** d'un cycle n'est pas garanti ; `nx.simple_cycles` peut être coûteux sur un graphe dense (les cycles s'accumulent avec l'ingestion, §10) ; la guérison est **destructrice et non idempotente**.
 
 ### 8.4 `core/timewave.py` : la courbe de nouveauté
 
-`TimeWaveZero(zero_date_str="2012-12-21")`
-
-- `zero_date` : `datetime` de la « date zéro ».
-- `novelty_diffs` : liste de 64 valeurs (une par hexagramme). Commentaire du code : *« Table de King Wen simplifiée »*. Elle est **schématique** (les indices 16, 32 et 48 valent `16`, presque tout le reste `-2`) : ce n'est pas le jeu de données complet de la théorie d'origine.
-- `scales = [1, 64, 4096]` : trois échelles de temps en **jours** (1 j, 64 j, 4096 j ≈ 11,2 ans).
-
-#### Algorithme de `calculer_nouveaute(target_date) -> float`
+`TimeWaveZero(zero_date_str="2012-12-21")` : `novelty_diffs` est une table de 64 valeurs **schématique** (indices 16, 32, 48 valent `16`, presque tout le reste `-2`), `scales = [1, 64, 4096]` (jours).
 
 ```text
-jours = (date_zero - target_date).days              # positif avant la date zéro, négatif après
+jours = (date_zero - target_date).days
 pour chaque échelle s dans [1, 64, 4096]:
-    indice = abs(jours // s) % 64
-    nouveauté += novelty_diffs[indice]
-nouveauté += 2 × sin( (jours / 67.29) × 2π )         # lissage sinusoïdal
+    nouveauté += novelty_diffs[ abs(jours // s) % 64 ]
+nouveauté += 2 × sin( (jours / 67.29) × 2π )
 ```
 
-**Exemple chiffré : 31 décembre 1999**
+**Exemple : 31 décembre 1999** → `jours = 4739` ; échelle 1 : `novelty_diffs[3] = -6` ; échelle 64 : `novelty_diffs[10] = -2` ; échelle 4096 : `novelty_diffs[1] = -3` ; sinusoïde : `+0.891` ; **total `-10.109`**.
 
-| Étape | Calcul | Valeur |
-|---|---|---|
-| `jours` | 2012-12-21 − 1999-12-31 | `4739` |
-| Échelle 1 | `abs(4739 // 1) % 64 = 3` → `novelty_diffs[3]` | `-6` |
-| Échelle 64 | `abs(4739 // 64) % 64 = 10` → `novelty_diffs[10]` | `-2` |
-| Échelle 4096 | `abs(4739 // 4096) % 64 = 1` → `novelty_diffs[1]` | `-3` |
-| Sinusoïde | `2·sin(4739/67.29 · 2π)` | `+0.891` |
-| **Total** | | **`-10.109`** |
+Repères : nouveauté à la date zéro = `0.0` ; au 30/09/2026 ≈ `-3.01`. Sur l'échantillon standard (1950-01-01, pas de 60 jours, 500 points) : min ≈ `-15.99`, max ≈ `33.89`, **percentile 90 ≈ `13.17`**. La courbe est **asymétrique** autour de la date zéro (`abs(jours // s)`).
 
-Valeurs de repère : nouveauté à la date zéro = `0.0` ; au 29/09/2026 = `-3.0`. Sur l'échantillon 1950 → ~2032 (pas de 60 jours, 500 points) : minimum ≈ `-15.99`, maximum ≈ `33.89`, percentile 90 ≈ `13.17`.
-
-> **Asymétrie.** À cause de `abs(jours // s)` (division entière arrondie vers −∞), la courbe **n'est pas symétrique** de part et d'autre de la date zéro. Un jour avant et un jour après ne donnent pas les mêmes indices.
-
-#### `est_pic_de_nouveaute(target_date, historique_nouveaute: list) -> bool`
-
-Renvoie `True` si la nouveauté de `target_date` est **≥ au percentile 90** de `historique_nouveaute` (que **vous** devez fournir) ; `False` si l'historique est vide. Cette méthode n'est appelée nulle part dans le dépôt.
+`est_pic_de_nouveaute(date, historique) -> bool` : `True` si la nouveauté de `date` est ≥ au percentile 90 de `historique` ; `False` si l'historique est vide.
 
 ### 8.5 `storage/leviathan_db.py` : la persistance
 
-`LeviathanDB(db_path="leviathan.db")` : chaque méthode ouvre/ferme sa propre connexion `sqlite3` (pas de connexion persistante, donc pas de problème de thread).
+`LeviathanDB(db_path="leviathan.db")` : chaque méthode ouvre/ferme sa propre connexion `sqlite3`.
 
 | Méthode | Comportement |
 |---|---|
-| `__init__` | Crée le fichier et les deux tables (`CREATE TABLE IF NOT EXISTS`). |
-| `charger_corpus_bdo(json_path)` | Retourne silencieusement si le fichier n'existe pas. Sinon `INSERT OR IGNORE` de chaque entrée (voir §7.3). |
-| `obtenir_toutes_entites()` | `SELECT *` → liste d'`EntiteOntique`. Reconstruit `fragments_runiques` (split sur `,`) et `couches_osi` (split sur `,` puis `int`) si les colonnes sont non vides. |
+| `__init__` | Crée les trois tables (`entites`, `liens_temporels`, `alertes`) et migre les anciennes bases. |
+| `charger_corpus_bdo(json_path)` | Silencieux si le fichier n'existe pas. `INSERT OR IGNORE` de chaque entrée (§7.3). |
+| `obtenir_toutes_entites()` | `SELECT` → liste d'`EntiteOntique` (deltas `NULL` → `0.5`). |
+| `sauvegarder_attributs_calcules(entite)` | `UPDATE` des colonnes `runes` et `paleo_memes`. |
+| `sauvegarder_lien(source, cible, force, type_lien)` | `INSERT OR REPLACE` dans `liens_temporels`. |
+| `obtenir_liens()` | Liste de tuples `(source, cible, force, type)`. |
+| `sauvegarder_entite(entite)` 🆕 | **UPSERT complet** (`ON CONFLICT(id) DO UPDATE`) de tous les champs persistables. |
+| `sauvegarder_alerte(entite_id, type_alerte, message)` 🆕 | Insère une ligne horodatée dans `alertes`. |
+| `obtenir_alertes(limite=20)` 🆕 | Dernières alertes `(id, entite_id, type, message, timestamp)`, la plus récente d'abord. |
 
-> **`INSERT OR IGNORE` = jamais de mise à jour.** Modifier une entrée existante dans le JSON (même `id`) n'a **aucun effet** sur une base déjà remplie (vérifié : un `coeur_dominant` passé de `gris` à `noir` reste `gris`). Supprimez `leviathan.db` pour repartir du JSON.
+> **`INSERT OR IGNORE` = le corpus JSON ne met jamais à jour.** Modifier une entrée existante dans le JSON n'a aucun effet sur une base déjà remplie. Supprimez `leviathan.db` pour repartir du JSON. `sauvegarder_entite` est, elle, un vrai UPSERT.
 
-### 8.6 `ui/cli_oracle.py` : l'Oracle en terminal
+### 8.6 `core/rss_ingestor.py` : le cycle de digestion 🆕
 
-- `afficher_mugissement_quantique(entite_nom, runes, cycle_paradoxe)` : affiche le panneau rouge `rich` ; le cycle est rendu avec `" -> ".join(cycle_paradoxe)`. **Réutilisable** tel quel (→ Tuto 4).
-- `simuler_veille_trame()` : boucle sur 3 signaux **codés en dur** `(nom, coeur, paradoxe)`. Pour chacun : tableau `rich` (timestamp, signal, cœur coloré, runes) ; si `paradoxe=True`, appel à `afficher_mugissement_quantique` avec un cycle factice `["2026_Event", "1944_Volknar", "2026_Event"]`. Les runes affichées sont, elles aussi, des chaînes fixes.
+`RSSIngestor(db, fracturo, tisserand, timewave, webhook_url=None)`
 
-Codes couleur du cœur : `noir` → rouge, `blanc` → blanc, autre → jaune.
-
-### 8.7 `ui/gui_dashboard.py` : le dashboard
-
-`DashboardLeviathan(db, graph_engine, timewave_engine)` ouvre une fenêtre `tk.Tk` 1200×800 (fond `#0f0f1b`) et construit un `ttk.Notebook` de deux onglets, chacun contenant une figure matplotlib intégrée (`FigureCanvasTkAgg`).
+Au démarrage : génère l'historique de nouveauté (même échantillonnage que le reste du projet), charge les entités connues en cache, et initialise `nb_nouvelles` et `nb_mugissements` (lus par `main.py` pour le résumé).
 
 | Méthode | Rôle |
 |---|---|
-| `_creer_interface()` | Construit les onglets et les figures |
-| `_tracer_graphe()` | `spring_layout(seed=42, k=0.9)`. Couleurs de nœuds : noir `#ff3333`, blanc `#ffffff`, autre `#aaaaaa`. Arêtes `#4ec9b0`. Les cycles sont redessinés en cyan (largeur 3) via `zip(cycle, cycle[1:] + [cycle[0]])`. Message « Le Léviathan dort… » si le graphe est vide. |
-| `_tracer_timewave()` | 500 dates de 1950-01-01, pas de 60 jours (≈ 82 ans). Trace la courbe et remplit sous la courbe. Superpose **au plus 20 entités** (rouge = noir, blanc = autre) ; une `date_debut` invalide est ignorée sans erreur. |
-| `run()` | `root.mainloop()` |
+| `ingerer_flux(urls, max_entries_per_feed=5)` | Parcourt les flux (timeout réseau global de 20 s), isole les erreurs flux par flux, traite les N premières entrées. |
+| `_traiter_entree(entry)` | Pipeline complet d'un item (ci-dessous). |
+| `_classifier_heuristique(texte)` | Cœur et delta selon les mots-clés. |
+| `_tisser_boucle(entite, ancienne)` | Crée et persiste les deux liens du tissage rétrocausal. |
+| `_verifier_mugissement(entite)` | Teste la triple condition et déclenche l'alerte. |
+| `_declencher_alerte_omega(entite, cycle)` | Console + Discord + base. |
 
-**Câblage effectué par `main.py`** (il suffit de le savoir pour comprendre ce que le dashboard affiche) : toutes les entités de la DB sont ajoutées au graphe, puis un lien `tisser_lien(entites[0].id, entites[0].id, 0.9, "retrocausal")` est créé. Le premier nœud a donc toujours une auto-boucle : **le dashboard montre toujours un paradoxe**, quel que soit le corpus.
+**Pipeline d'un item**
+
+1. **Nettoyage** : balises HTML retirées du titre et du résumé ; résumé tronqué à 200 caractères ; date = `published`, sinon `updated`, sinon aujourd'hui.
+2. **ID déterministe** : `sha256(titre_date)[:12]`. Un item déjà connu est ignoré : relancer l'ingestion ne crée **pas de doublons**.
+3. **Classification** (sans LLM), sur la sous-chaîne minuscule de `titre + résumé` :
+
+| Condition | Cœur | Delta | Risque |
+|---|---|---|---|
+| ≥ 2 mots `TRIGGERS_NOIR`, ou plus de mots noirs que blancs (et ≥ 1) | `noir` | `0.25` | 4 |
+| Plus de mots `TRIGGERS_BLANC` que noirs | `blanc` | `0.85` | 2 |
+| Sinon | `gris` | `0.55` | 2 |
+
+`TRIGGERS_NOIR` : anomalie, inexpliqué, effondrement, disparition, secret, crise, bug, glitch, paradoxe, mystère. `TRIGGERS_BLANC` : harmonie, découverte, synchronicité, lumière, paix, résolution, miracle. (Ces listes sont en tête du fichier, modifiables.)
+
+4. **Enrichissement Fracturo** : runes du titre, paléo-mèmes de la description.
+5. **Tissage rétrocausal** : on cherche, parmi les entités **plus anciennes** (date stricte), la **première** qui partage un paléo-mème avec l'item **ou** qui est déjà de cœur `noir`. Si trouvée : lien rétrocausal *nouvelle ➜ ancienne* (force `0.85`) **et** lien causal *ancienne ➜ nouvelle* (force `0.60`), tous deux persistés. Le second lien est indispensable : sans lui, le graphe orienté ne contiendrait aucun cycle passant par la nouvelle entité.
+6. **Persistance** de l'entité (UPSERT).
+7. **Vérification du Mugissement** (uniquement si l'item est de cœur `noir`) : l'entité appartient-elle à un cycle ? sa date tombe-t-elle sur un pic de nouveauté ? Si oui : alerte, puis guérison du cycle et sauvegarde de **toutes** ses entités.
+
+Sortie console d'un Mugissement (voir Tuto 4 pour la reproduire) :
+
+```text
+======================================================================
+⚠️ MUGISSEMENT QUANTIQUE DÉTECTÉ ⚠️
+Entité : Anomalie effondrement de la machine
+FracturoScript : ᚨᚾᛟᛗᚨᛚᛁᛖᛖᚠᚠᛟᚾᛞᚱᛖᛗᛖᚾᛏᛞᛖᛚᚨᛗᚨᚲᚺᛁᚾᛖ
+Boucle rétrocausale : b856632995c7 ➜ 589c0ea08914 ➜ b856632995c7
+Paléo-mèmes activés : MACHINE(ᛗᛖᚲᚨᚾᛖ)
+Le Delta s'effondre. Le passé a été réécrit.
+======================================================================
+```
+
+### 8.7 `core/webhook_notifier.py` : l'alerte Discord 🆕
+
+`DiscordNotifier(webhook_url=None)` : l'URL est prise dans cet ordre — argument, variable d'environnement `CHRONOS_TRAME_WEBHOOK_URL`, sinon `None`.
+
+`send_omega_alert(entite_nom, runes, cycle, paleo_memes, delta)` :
+
+- **Sans URL : ne fait rien** (aucune erreur, aucun message).
+- Sinon, envoie un *embed* rouge sombre (`0xC00000`) : entité déclencheuse, FracturoScript, boucle rétrocausale, paléo-mèmes, delta. Chaque champ est tronqué à 1 024 caractères (limite Discord).
+- Un `User-Agent` explicite est envoyé : Discord (Cloudflare) rejette l'agent par défaut de `urllib` avec une erreur 403. Timeout : 10 s.
+- Les erreurs HTTP et réseau sont **affichées, jamais levées** : un webhook en panne ne bloque pas l'ingestion.
+- Le delta envoyé est celui **avant** la guérison de l'entité déclencheuse.
+
+### 8.8 `main.py` : l'orchestrateur
+
+| Fonction | Rôle |
+|---|---|
+| `charger_config()` / `sauvegarder_config(config)` | Lecture (fusion avec les défauts) et écriture de `data/config.json`. |
+| `initialiser_systeme(config)` | Crée la base, charge le corpus, peuple le graphe, calcule et **persiste** runes/mèmes, recharge les liens stockés. |
+| `ingerer_flux_rss(config, db, fracturo, tisserand, timewave, urls, max_entries)` 🆕 | Instancie `RSSIngestor`, lance la digestion, affiche le résumé. |
+| `filtrer_entites(entites, args)` | Applique `--coeur`, `--classe`, `--risque-min`, `--date-debut`, `--date-fin`. |
+| `detecter_mugissements(...)` | Cycle contenant **au moins un** nœud noir **et au moins un** pic de nouveauté. |
+| `analyser_signaux_faibles(...)` | Score par entité (pic +3, noir +2, delta ≥ seuil +2, risque ≥ 4 +1), garde ≥ 3, 20 lignes max. |
+| `analyser_cycles`, `explorer_timewave`, `afficher_stats` | Tableaux `rich`. |
+| `exporter_graphe`, `exporter_timewave`, `exporter_rapport_json` | Fichiers image et JSON. |
+
+Différence entre les deux détecteurs : à l'**ingestion**, le test vise l'item qui vient d'arriver (noir + dans un cycle + **sa** date est un pic). En **analyse** (`--mugissements`), le test porte sur chaque cycle stocké (un nœud noir **ou** un pic n'importe où dans le cycle). Après un Mugissement, la guérison rend tout le cycle noir : `--mugissements` le signalera donc ensuite si l'un de ses membres est sur un pic.
+
+### 8.9 `ui/cli_oracle.py` : démo legacy
+
+`afficher_mugissement_quantique(entite_nom, runes, cycle_paradoxe)` (panneau `rich`, réutilisable) et `simuler_veille_trame()` (3 signaux codés en dur). **`main.py` ne les appelle plus** ; le fichier est conservé comme démo autonome.
+
+### 8.10 `ui/gui_dashboard.py` : le dashboard
+
+`DashboardLeviathan(db, graph_engine, timewave_engine)` : fenêtre `tk.Tk` 1200×800 (fond `#0f0f1b`) avec deux onglets matplotlib. Graphe : `spring_layout(seed=42, k=0.9)`, noms des entités en étiquettes, cycles surlignés en cyan. Courbe : 500 dates depuis 1950-01-01 (pas de 60 jours), **20 entités maximum** superposées, dates invalides ignorées.
 
 ---
 
 ## 9. Tutoriels pas à pas
 
-> **Convention :** sauf mention contraire, les scripts se placent **à la racine du dépôt** (à côté de `main.py`) pour que `import core…` fonctionne. Depuis un autre dossier, utilisez `PYTHONPATH=/chemin/vers/Chronos-Trame-main python votre_script.py`.
+> **Convention :** les scripts se placent **à la racine du dépôt** (à côté de `main.py`) pour que `import core…` fonctionne, ou se lancent avec `PYTHONPATH=. python script.py`.
 
 ---
 
-### Tuto 1 : Lancer et comprendre la démo
+### Tuto 1 : Lancer et comprendre l'analyse
 
-**Objectif :** exécuter les deux modes et lire ce qu'ils affichent.
-
-1. Depuis la racine : `python main.py --mode cli`. Observez les trois signaux et le panneau rouge du deuxième.
-2. Constatez la création de `leviathan.db` : `ls -la leviathan.db`.
-3. Lancez `python main.py --mode gui` : ouvrez l'onglet **Graphe** (un nœud + une boucle = le paradoxe de démo) puis l'onglet **Onde de Nouveauté** (un point blanc vers l'an 2000 pour `demo_001`).
-4. Relisez `main.py` avec le diagramme de séquence du §5 sous les yeux.
-
-**À retenir :** en mode CLI, tout le travail de peuplement de la DB et du graphe est effectué **puis ignoré** ; seule la fonction de démo est appelée.
+1. `python main.py --mode cli` : statistiques et détection de Mugissements sur le corpus d'exemple (une entité grise, aucun cycle : « La Trame est stable »).
+2. `ls -la leviathan.db` : la base est créée.
+3. `python main.py --mode cli --timewave --top-n 5` : les 5 plus hauts pics et creux de la courbe.
+4. `python main.py --mode gui` : graphe à un nœud sans paradoxe, puis courbe avec un point pour `demo_001`.
 
 ---
 
 ### Tuto 2 : Ajouter une entité au corpus
 
-**Objectif :** injecter votre propre anomalie et la voir apparaître dans le GUI.
-
-**1. Éditez `data/bdo_corpus_sample.json`** : ajoutez un objet à la liste (n'oubliez pas la virgule entre les objets) :
+Ajoutez un objet à la liste de `data/bdo_corpus_sample.json` (virgule entre les objets) :
 
 ```json
 {
@@ -595,37 +673,27 @@ Codes couleur du cœur : `noir` → rouge, `blanc` → blanc, autre → jaune.
 }
 ```
 
-**2. Rechargez la base.** Le nouvel `id` sera inséré même si `leviathan.db` existe déjà (seuls les `id` déjà présents sont ignorés). Si vous modifiez une entrée **existante**, supprimez d'abord la base : `rm leviathan.db`.
+Le nouvel `id` est inséré même si `leviathan.db` existe (seuls les `id` déjà présents sont ignorés ; pour modifier une entrée existante : `rm leviathan.db`). Vérification :
 
-**3. Vérifiez** :
-
-```python
+```bash
+python main.py --mode cli --stats --coeur noir
+python3 -c "
 from storage.leviathan_db import LeviathanDB
 from core.fracturo_engine import FracturoEngine
-
-db = LeviathanDB("leviathan.db")
-db.charger_corpus_bdo("data/bdo_corpus_sample.json")
 f = FracturoEngine()
-for e in db.obtenir_toutes_entites():
-    print(e.id, "|", e.nom, "|", e.coeur_dominant, "|", e.delta_pendant, "|", f.detecter_meme(e.description))
+for e in LeviathanDB('leviathan.db').obtenir_toutes_entites():
+    print(e.id, '|', e.nom, '|', e.coeur_dominant, '|', e.delta_pendant, '|', f.detecter_meme(e.description))
+"
 ```
-
-Sortie :
 
 ```text
 demo_001 | Synchronicité de Vauville | gris | 0.4 | []
-evt_001 | Effacement mémoriel de Montréal | noir | 0.7 | ['BOUCLE(ᛟᚱᛟᛒᛟᚱᛟ)', 'OMBRE(ᚾᛁᚺᛏ)', 'MACHINE(ᛗᛖᚲᚨᚾᛖ)']
+evt_001 | Effacement mémoriel de Montréal | noir | 0.7 | ['OUBLI(ᛖᛈᛋᛁᛚᛟᚾ)', 'BOUCLE(ᛟᚱᛟᛒᛟᚱᛟ)', 'OMBRE(ᚾᛁᚺᛏ)', 'MACHINE(ᛗᛖᚲᚨᚾᛖ)']
 ```
-
-Notez que `"oubli"` (dans « d'oubli ») **ne** déclenche **pas** le mème `oublie` : le déclencheur est une sous-chaîne exacte (§8.2).
-
-**4. `python main.py --mode gui`** : un second nœud (rouge, car cœur noir) apparaît dans le graphe, et un point rouge sur la courbe à mars 2010.
 
 ---
 
 ### Tuto 3 : Créer un vrai paradoxe (et le « guérir »)
-
-**Objectif :** produire un cycle authentique entre deux événements, sans l'auto-boucle de démo.
 
 Créez `tuto_paradoxe.py` à la racine :
 
@@ -660,139 +728,108 @@ for _ in range(6):
 print("4) plancher 0.05     :", b.delta_pendant)
 ```
 
-Sortie attendue :
-
 ```text
 1) causal seul       : []
-2) + rétrocausal     : [['evt_2026', 'evt_1944']]
+2) + rétrocausal     : [['evt_1944', 'evt_2026']]
 3) evt_1944: coeur=noir, delta_pendant=0.3
 3) evt_2026: coeur=noir, delta_pendant=0.4
 4) plancher 0.05     : 0.05
 ```
 
-**Ce qu'il faut comprendre**
-
-- Une seule arête passé → futur ne forme **pas** de paradoxe ; c'est la fermeture du cycle par le lien rétrocausal qui en crée un.
-- La guérison divise chaque delta par deux **et** passe le cœur à `noir` (le paradoxe « corrompt »), y compris pour une entité initialement `blanc`.
-- Appelée plusieurs fois, elle converge vers le plancher `0.05`.
-- L'ordre dans le cycle (`['evt_2026', 'evt_1944']`) peut varier selon la version de NetworkX.
+Une seule arête passé → futur ne forme **pas** de paradoxe : c'est la fermeture du cycle par le lien rétrocausal qui en crée un. La guérison divise chaque delta par deux **et** passe le cœur à `noir`, même pour une entité `blanc`. (L'ordre dans le cycle peut varier selon la version de NetworkX.)
 
 ---
 
-### Tuto 4 : Implémenter le vrai Mugissement Quantique
+### Tuto 4 : Provoquer un Mugissement Quantique via l'ingestion
 
-**Objectif :** câbler la règle décrite dans le README d'origine : **cœur noir + cycle + pic de nouveauté**.
+**Objectif :** déclencher l'alerte de bout en bout **sans dépendre d'un flux réel**, avec un petit flux RSS local. Il faut : un item noir ancien, puis un item noir récent partageant un lien avec lui, daté sur un **pic** de nouveauté (le 23/09/2026 en est un ; le 01/09/2026 n'en est pas un).
 
-Les trois ingrédients existent déjà mais ne sont jamais réunis : `detecter_paradoxes()`, `est_pic_de_nouveaute()` et `afficher_mugissement_quantique()`. Créez `tuto_mugissement.py` :
+Créez `test_feed.xml` à la racine :
 
-```python
-from datetime import datetime, timedelta
-from core.ontology import EntiteOntique
-from core.temporal_graph import TisserandTemporal
-from core.timewave import TimeWaveZero
-from core.fracturo_engine import FracturoEngine
-from ui.cli_oracle import afficher_mugissement_quantique
-
-def historique_nouveaute(tw, debut=datetime(1950, 1, 1), pas_jours=60, n=500):
-    """Même échantillonnage que le GUI (gui_dashboard._tracer_timewave)."""
-    return [tw.calculer_nouveaute(debut + timedelta(days=i * pas_jours)) for i in range(n)]
-
-def detecter_mugissements(tisserand, tw, historique):
-    """Cœur noir + cycle + pic de nouveauté => liste de (cycle, entités) critiques."""
-    critiques = []
-    for cycle in tisserand.detecter_paradoxes():
-        entites = [tisserand.graphe.nodes[n]["data"] for n in cycle]
-        a_coeur_noir = any(e.coeur_dominant == "noir" for e in entites)
-        a_pic = any(
-            tw.est_pic_de_nouveaute(datetime.strptime(e.date_debut, "%Y-%m-%d"), historique)
-            for e in entites
-        )
-        if a_coeur_noir and a_pic:
-            critiques.append((cycle, entites))
-    return critiques
-
-tw, fr, tis = TimeWaveZero(), FracturoEngine(), TisserandTemporal()
-
-def mk(i, nom, date, coeur):
-    return EntiteOntique(i, nom, "", date, None, "IR", coeur, 0.5, 0.5, 0.5, 4)
-
-a = mk("evt_2010", "Effacement mémoriel", "2010-03-01", "noir")
-b = mk("evt_1944", "Volknar",             "1944-06-06", "gris")
-for e in (a, b):
-    tis.ajouter_entite(e)
-tis.tisser_lien("evt_1944", "evt_2010", 0.7, "causal")
-tis.tisser_lien("evt_2010", "evt_1944", 0.9, "retrocausal")
-
-hist = historique_nouveaute(tw)
-for cycle, entites in detecter_mugissements(tis, tw, hist):
-    declencheur = next(e for e in entites if e.coeur_dominant == "noir")
-    afficher_mugissement_quantique(declencheur.nom,
-                                   fr.traduire_en_runes(declencheur.nom),
-                                   cycle + [cycle[0]])   # referme visuellement la boucle
+```xml
+<rss>
+<channel>
+  <item><title>Disparition et secret inexplique</title><description>anomalie</description><pubDate>Sat, 01 Aug 2026 12:00:00 +0000</pubDate></item>
+  <item><title>Anomalie effondrement de la machine</title><description>paradoxe machine</description><pubDate>Wed, 23 Sep 2026 12:00:00 +0000</pubDate></item>
+  <item><title>Harmonie lumiere decouverte</title><description>paix</description><pubDate>Tue, 01 Sep 2026 12:00:00 +0000</pubDate></item>
+</channel></rss>
 ```
 
-Sortie :
+Puis (base vierge recommandée : `rm -f leviathan.db`) :
+
+```bash
+python main.py --ingerer --flux test_feed.xml
+```
+
+Sortie (après les lignes d'activation des capteurs) :
 
 ```text
-╭──────────────────────────────────────────────────────────────────────╮
-│ ⚠️ MUGISSEMENT QUANTIQUE DÉTECTÉ AUX FRONTIÈRES DE L'INTRICATION ⚠️  │
-│                                                                      │
-│ Entité déclencheuse : Effacement mémoriel                            │
-│ FracturoScript résonant : ᛖᚠᚠᚨᚲᛖᛗᛖᚾᛏ•ᛗéᛗᛟᚱᛁᛖᛚ                        │
-│ Boucle rétrocausale fermée : evt_1944 -> evt_2010 -> evt_1944        │
-│                                                                      │
-│ Le Delta s'effondre. Le passé a été réécrit. Le Léviathan s'éveille. │
-╰──────────────────────────────────────────────────────────────────────╯
+    🕸️ Lien rétrocausal tissé : Anomalie effondrement de la ma... ➜ Disparition et secret inexpliq...
+
+======================================================================
+⚠️ MUGISSEMENT QUANTIQUE DÉTECTÉ ⚠️
+Entité : Anomalie effondrement de la machine
+FracturoScript : ᚨᚾᛟᛗᚨᛚᛁᛖᛖᚠᚠᛟᚾᛞᚱᛖᛗᛖᚾᛏᛞᛖᛚᚨᛗᚨᚲᚺᛁᚾᛖ
+Boucle rétrocausale : b856632995c7 ➜ 589c0ea08914 ➜ b856632995c7
+Paléo-mèmes activés : MACHINE(ᛗᛖᚲᚨᚾᛖ)
+Le Delta s'effondre. Le passé a été réécrit.
+======================================================================
+
+    🕸️ Lien rétrocausal tissé : Harmonie lumiere decouverte... ➜ Disparition et secret inexpliq...
+
+📊 Résumé de la digestion :
+Nouvelles entités digérées : 3
+Mugissements déclenchés : 1
+Entités totales en base : 4
+Paradoxes actifs détectés : 2
 ```
 
-**Pourquoi 2010-03-01 ?** La nouveauté de cette date vaut `17.0`, au-dessus du seuil de `13.17` (percentile 90) : c'est un pic. Remplacez-la par `2021-04-12` (nouveauté `9.95`) et le Mugissement **ne se déclenche plus**, alors que le cycle et le cœur noir sont toujours là.
+Vérifiez ensuite la persistance, puis relancez la même commande (aucun doublon : `Nouvelles entités digérées : 0`) :
 
-**Pour aller plus loin :** appelez `tis.appliquer_guérison_quantique(cycle)` et `fr.generer_prophetie(entite, paradoxe=True)` dans la boucle pour obtenir la réponse narrative complète, puis intégrez `detecter_mugissements` à `main.py` en remplacement de `simuler_veille_trame()`.
+```bash
+python main.py --mode cli --cycles --mugissements
+sqlite3 leviathan.db "SELECT id, entite_id, type, timestamp FROM alertes;"
+```
+
+Notes : les deux `id` de la boucle sont des hachages de `titre_date`, donc **identiques chez vous**. Le 3ᵉ item (blanc) se relie lui aussi à l'entité noire la plus ancienne, d'où 2 paradoxes au total. Remplacez la date du 2ᵉ item par `Tue, 01 Sep 2026` : le cycle existe toujours, mais **aucun Mugissement** n'est déclenché (pas de pic).
 
 ---
 
 ### Tuto 5 : Étendre le FracturoScript
 
-**Objectif :** couvrir les lettres manquantes, gérer les accents et ajouter un mème.
-
 ```python
-import unicodedata
-from core.fracturo_engine import FracturoEngine, MEMETIC_TRIGGERS
+from core.fracturo_engine import FracturoEngine, MEMETIC_TRIGGERS, RUNE_ALPHABET
 
 f = FracturoEngine()
-print("avant :", f.traduire_en_runes("Vauville quiz yeux"))
-# avant : Vᚨᚢvᛁᛚᛚᛖ•qᚢᛁᛉ•yᛖᚢx
 
-# 1) Lettres manquantes (lexique est le dictionnaire global : la modification est partagée)
-f.lexique.update({"v": "ᚹ", "y": "ᛁ", "x": "ᚲᛋ", "q": "ᚲᚹ"})
-print("après :", f.traduire_en_runes("Vauville quiz yeux"))
-# après : ᚹᚨᚢᚹᛁᛚᛚᛖ•ᚲᚹᚢᛁᛉ•ᛁᛖᚢᚲᛋ
+# 1) Changer une convention (le lexique est le dictionnaire global : la modification est partagée)
+RUNE_ALPHABET["v"] = "ᚠ"
+print(f.traduire_en_runes("Vauville"))
 
-# 2) Accents : normaliser avant de traduire
-def sans_accents(t):
-    return "".join(c for c in unicodedata.normalize("NFD", t) if unicodedata.category(c) != "Mn")
+# 2) Ponctuation et chiffres : ajoutez-les au lexique
+RUNE_ALPHABET["'"] = "ᛜ"
+print(f.traduire_en_runes("l'ombre"))
 
-print(f.traduire_en_runes(sans_accents("Synchronicité")))
-# ᛋᛁᚾᚲᚺᚱᛟᚾᛁᚲᛁᛏᛖ
-
-# 3) Nouveau mème déclencheur
+# 3) Nouveau mème déclencheur (clé sans accent ou accentuée : la comparaison est normalisée)
 MEMETIC_TRIGGERS["miroir"] = "ᛗᛁᚱᛟᛁᚱ"
 print(f.detecter_meme("Un miroir sans machine"))
 # ['MACHINE(ᛗᛖᚲᚨᚾᛖ)', 'MIROIR(ᛗᛁᚱᛟᛁᚱ)']
 ```
 
-**Notes**
-
-- Les valeurs du lexique peuvent être **multi-caractères** (`x → ᚲᛋ`), puisque la traduction concatène des chaînes.
-- Le Futhark ancien n'a pas de `v`, `x`, `y`, `q` : les correspondances ci-dessus sont des **choix phonétiques** (`ᚹ` = w/v, `ᚲᛋ` = k+s), à adapter à votre convention.
-- Pour lever la limite de 30 caractères, modifiez `texte[:30]` dans `traduire_en_runes`.
-- Pour que `"oubli"` déclenche le mème, remplacez la clé `"oublie"` par `"oubli"` (le test est une sous-chaîne, donc `"oubli"` couvre aussi `"oublie"`, `"oubliée"`…).
+Les valeurs du lexique peuvent être multi-caractères. Le Futhark ancien n'a pas de `v`, `x`, `y`, `q` : les correspondances fournies (`ᚹ`, `ᚲᛋ`, `ᛁ`, `ᚲᚹ`) sont des **choix phonétiques**. Un déclencheur est testé comme sous-chaîne : `oubli` couvre `oublie`, `oubliée`, `oublier`…
 
 ---
 
 ### Tuto 6 : Explorer la courbe de nouveauté
 
-**Objectif :** trouver les dates « chaudes » d'une période.
+En ligne de commande :
+
+```bash
+python main.py --mode cli --timewave --annee-debut 2020 --annee-fin 2026 --top-n 5
+python main.py --mode cli --export-timewave tw.png --annee-debut 2000 --annee-fin 2032
+```
+
+En Python, pour trouver les dates « chaudes » d'une période :
 
 ```python
 from datetime import datetime, timedelta
@@ -804,8 +841,6 @@ for d in sorted(jours, key=tw.calculer_nouveaute, reverse=True)[:5]:
     print(d.date(), round(tw.calculer_nouveaute(d), 2))
 ```
 
-Sortie :
-
 ```text
 2026-12-12 32.61
 2026-11-26 32.3
@@ -814,163 +849,69 @@ Sortie :
 2021-05-04 27.99
 ```
 
-Variantes utiles :
-
-```python
-# Changer la date zéro (autre référence temporelle)
-tw2 = TimeWaveZero("2026-01-01")
-
-# La nouveauté à la date zéro elle-même est toujours 0.0
-tw.calculer_nouveaute(datetime(2012, 12, 21))   # 0.0
-```
-
-> Les pics à 16 (indices 16/32/48) se répètent avec les échelles 1, 64 et 4096 jours : c'est la structure de la table simplifiée (§8.4) qui produit ces « sursauts » réguliers, visibles sur la courbe du GUI.
+Autre référence temporelle : `python main.py --set-zero-date 2026-01-01`. Les pics à 16 (indices 16/32/48) se répètent avec les échelles 1, 64 et 4096 jours : ce sont les « sursauts » réguliers de la courbe.
 
 ---
 
-### Tuto 7 : Brancher `config.json`
+### Tuto 7 : Brancher les alertes Discord
 
-**Objectif :** que `main.py` obéisse enfin à `data/config.json`.
-
-⚠️ **Piège découvert à l'exécution :** `main.py` contient un `import json` **à l'intérieur** de la fonction `main()` (dans le bloc de création du corpus mock). Cela fait de `json` une variable *locale* pour toute la fonction : tout usage antérieur lève `UnboundLocalError`. Il faut donc **supprimer cet import local** en plus d'ajouter l'import en tête de fichier.
-
-Patch à appliquer à `main.py` :
-
-```diff
- # main.py
- import argparse
-+import json
- import os
- ...
-     # 1. Initialisation des moteurs
--    db = LeviathanDB("leviathan.db")
-+    with open("data/config.json", encoding="utf-8") as f:
-+        cfg = json.load(f)
-+
-+    db = LeviathanDB(cfg["db_path"])
- 
-     # Charger le corpus BDO s'il existe (ou créer un mock pour la démo)
-     if not os.path.exists("data/bdo_corpus_sample.json"):
-         os.makedirs("data", exist_ok=True)
-         with open("data/bdo_corpus_sample.json", "w", encoding="utf-8") as f:
--            import json
-             json.dump([{
- ...
--    db.charger_corpus_bdo("data/bdo_corpus_sample.json")
-+    db.charger_corpus_bdo(cfg["corpus_path"])
- ...
--    timewave = TimeWaveZero()
-+    timewave = TimeWaveZero(cfg["timewave_zero_date"])
-```
-
-**Test :** mettez `"db_path": "custom_name.db"` dans `config.json`, relancez `python main.py --mode cli`, puis `ls *.db` → `custom_name.db` doit apparaître (vérifié).
-
-Le chemin `data/config.json` reste relatif au répertoire courant : lancez toujours depuis la racine, ou passez à `pathlib.Path(__file__).parent` pour vous en affranchir.
-
----
-
-### Tuto 8 : Persister les liens temporels
-
-**Objectif :** exploiter la table `liens_temporels`, aujourd'hui vide et inutilisée, pour que le graphe survive au redémarrage.
-
-Ajoutez ces deux méthodes à `LeviathanDB` (dans `storage/leviathan_db.py`) :
-
-```python
-    def sauver_lien(self, source, cible, force, type_lien="causal"):
-        with sqlite3.connect(self.db_path) as conn:
-            # La table n'a pas de clé primaire : on supprime l'éventuel doublon avant d'insérer
-            conn.execute("DELETE FROM liens_temporels WHERE source=? AND cible=? AND type=?",
-                         (source, cible, type_lien))
-            conn.execute("INSERT INTO liens_temporels (source, cible, force, type) VALUES (?,?,?,?)",
-                         (source, cible, force, type_lien))
-
-    def obtenir_liens(self):
-        with sqlite3.connect(self.db_path) as conn:
-            return conn.execute("SELECT source, cible, force, type FROM liens_temporels").fetchall()
-```
-
-Utilisation :
-
-```python
-from storage.leviathan_db import LeviathanDB
-from core.temporal_graph import TisserandTemporal
-
-db = LeviathanDB("leviathan.db")
-db.sauver_lien("demo_001", "evt_001", 0.6, "causal")
-db.sauver_lien("evt_001", "demo_001", 0.9, "retrocausal")
-db.sauver_lien("evt_001", "demo_001", 0.9, "retrocausal")   # doublon : sans effet
-
-tis = TisserandTemporal()
-for e in db.obtenir_toutes_entites():
-    tis.ajouter_entite(e)                    # les nœuds d'abord (sinon nœuds sans 'data')
-for s, c, force, t in db.obtenir_liens():
-    tis.tisser_lien(s, c, force, t)
-
-print(db.obtenir_liens())
-# [('demo_001', 'evt_001', 0.6, 'causal'), ('evt_001', 'demo_001', 0.9, 'retrocausal')]
-print(tis.detecter_paradoxes())
-# [['evt_001', 'demo_001']]
-```
-
-Ensuite, dans `main.py`, remplacez la ligne de l'auto-boucle artificielle par le rechargement des liens réels : le dashboard ne montrera alors un paradoxe **que si** vos données en contiennent un.
-
----
-
-### Bonus : Exporter les graphiques en PNG (sans écran)
-
-Utile sur un serveur, en CI ou pour documenter. Nécessite `tkinter` (car le GUI l'importe) et `xvfb` sous Linux (`sudo apt install python3-tk xvfb`).
-
-```python
-# export_png.py (à la racine)
-from core.temporal_graph import TisserandTemporal
-from core.timewave import TimeWaveZero
-from storage.leviathan_db import LeviathanDB
-from ui.gui_dashboard import DashboardLeviathan
-
-db = LeviathanDB("leviathan.db"); db.charger_corpus_bdo("data/bdo_corpus_sample.json")
-tis, tw = TisserandTemporal(), TimeWaveZero()
-ents = db.obtenir_toutes_entites()
-for e in ents:
-    tis.ajouter_entite(e)
-tis.tisser_lien(ents[0].id, ents[0].id, 0.9, "retrocausal")
-
-app = DashboardLeviathan(db, tis, tw)
-app.root.update()
-app.fig_graphe.savefig("graphe.png", facecolor=app.fig_graphe.get_facecolor())
-app.fig_tw.savefig("timewave.png", facecolor=app.fig_tw.get_facecolor())
-app.root.destroy()
-```
+1. Dans Discord : *Paramètres du salon → Intégrations → Webhooks → Nouveau webhook*, puis copiez l'URL.
+2. **Méthode recommandée** (l'URL n'entre pas dans le dépôt) :
 
 ```bash
-xvfb-run -a python export_png.py
+export CHRONOS_TRAME_WEBHOOK_URL="https://discord.com/api/webhooks/XXXX/YYYY"     # Linux / macOS
+$env:CHRONOS_TRAME_WEBHOOK_URL = "https://discord.com/api/webhooks/XXXX/YYYY"     # PowerShell
 ```
+
+   Alternative : coller l'URL dans `discord_webhook_url` de `data/config.json` (**ne pas committer** ce fichier ensuite).
+3. Provoquez un Mugissement avec le Tuto 4. Un embed rouge « MUGISSEMENT QUANTIQUE DÉTECTÉ » doit arriver dans le salon, et la console affiche `[Discord] Alerte Omega transmise avec succès.`
+4. Test de l'envoi seul, sans ingestion :
+
+```python
+from core.webhook_notifier import DiscordNotifier
+DiscordNotifier().send_omega_alert("Test", "ᛏᛖᛋᛏ", ["a", "b"], ["MACHINE(ᛗᛖᚲᚨᚾᛖ)"], 0.12)
+```
+
+Sans URL, ces appels sont **silencieux**. En cas d'échec, un message `[Discord] Erreur HTTP …` ou `Échec de la transmission …` est affiché et l'ingestion continue. Si l'URL a fuité, supprimez le webhook dans Discord puis recréez-en un.
+
+---
+
+### Tuto 8 : Utiliser le corpus complet `BDO2.json`
+
+```bash
+# config.json : "corpus_path": "data/BDO2.json" et "db_path": "bdo2.db"
+python main.py --mode cli --stats
+python main.py --mode cli --coeur noir --classe IR --stats
+python main.py --mode cli --export-rapport rapport.json --export-graphe graphe.png
+```
+
+Constaté à l'exécution : 1 183 entrées dans le fichier, **979 `id` uniques** (les doublons sont ignorés à l'import) ; `--stats` et `--cycles` fonctionnent. ⚠️ Dates manquantes ou non ISO : `--signaux`, `--date-debut`/`--date-fin` et `--export-timewave` plantent (limite n° 1 du §10).
 
 ---
 
 ## 10. Limites connues et pièges
 
-Toutes les lignes ci-dessous ont été **constatées à l'exécution** (ou lues dans le code) et ne sont pas des hypothèses.
+Les lignes marquées ✔ ont été **constatées à l'exécution**.
 
 | # | Constat | Conséquence / contournement |
 |---|---|---|
-| 1 | `data/config.json` n'est **lu par aucun module** ; chemins et date zéro sont en dur. | Modifier ce fichier n'a aucun effet. → Tuto 7 |
-| 2 | Dans `main.py`, `import json` est **local** à `main()`. | Toute utilisation de `json` plus haut dans la fonction lève `UnboundLocalError`. → Tuto 7 |
-| 3 | `feedparser` est dans `requirements.txt` mais **jamais importé** ; le CLI affiche « Écoute des flux RSS » alors que les 3 signaux sont **codés en dur**. | Aucune ingestion réelle de flux. |
-| 4 | En mode CLI, DB et graphe sont construits puis **ignorés**. | Le CLI est indépendant du corpus. |
-| 5 | La règle du Mugissement (noir + cycle + pic) décrite dans le README n'est **pas implémentée** ; `est_pic_de_nouveaute`, `generer_prophetie`, `appliquer_guérison_quantique` ne sont jamais appelées. | → Tuto 4 |
-| 6 | Runes et mèmes calculés dans `main.py` ne sont **jamais réécrits en base** ; colonnes `runes` et `couches` toujours vides ; table `liens_temporels` inutilisée. | Rien ne persiste hors du corpus. → Tuto 8 |
-| 7 | `main.py` crée une **auto-boucle** sur la première entité. | Le GUI affiche toujours un paradoxe. |
-| 8 | `INSERT OR IGNORE` : un `id` existant n'est **jamais mis à jour**. | Supprimer `leviathan.db` après modification du JSON. |
-| 9 | Import avec perte : `delta_avant` = `delta_apres` = `delta_pendant`, `date_fin` = `None`, description tronquée à 100 caractères. | Les champs `avant`/`apres` du JSON sont ignorés. |
-| 10 | `traduire_en_runes` : 30 premiers caractères seulement ; `q v x y`, accents, majuscules non couvertes restent en clair ; `c` et `k` → même rune. | → Tuto 5 |
-| 11 | `detecter_meme` teste une **sous-chaîne minuscule avec accents** : `oubli` ≠ `oublie`, `lumiere` ≠ `lumière`. | Normaliser les accents ou élargir les clés. |
-| 12 | `generer_prophetie` recolle les fragments sans séparateur ; avec `paleo_memes` vide, la phrase se termine par `: .`. | Cosmétique. |
-| 13 | **GUI, onglet graphe :** `nx.draw` force le fond de la figure en blanc, donc le titre `color='white'` est **invisible** ; les labels affichent les `id`, pas les noms. | Ajouter `self.fig_graphe.set_facecolor('#0f0f1b')` après `nx.draw`. |
-| 14 | TimeWave : table **simplifiée** ; courbe **asymétrique** autour de la date zéro (`abs(jours // s)`). | Modèle stylisé, pas une reproduction fidèle. |
-| 15 | Tous les chemins sont **relatifs au répertoire courant**. | Lancé d'ailleurs, le programme crée `leviathan.db` et `data/` dans ce dossier-là (vérifié). |
-| 16 | L'ordre des nœuds dans un cycle n'est pas garanti ; `simple_cycles` peut être coûteux sur graphe dense. | Ne pas dépendre de `cycle[0]`. |
-| 17 | Aucun test, aucune version épinglée, aucune licence déclarée. | → §12 pour un smoke test. |
-| 18 | Imports inutilisés : `random`, `hashlib`, `Dict` (`fracturo_engine`) ; `messagebox` (`gui_dashboard`) ; `random`, `Text` (`cli_oracle`) ; `datetime` (`ontology`). | Nettoyage à faire (ex. `ruff check --select F401`). |
+| 1 | ✔ **`BDO2.json`** : 1 183 entrées pour 979 `id` uniques ; au moins une entrée a `date_debut: null` (stockée `NULL`) et 165 dates ne sont pas au format `YYYY-MM-DD` (années négatives comme `-9600-01-01`, dates floues…). | Constaté : `--signaux` (`TypeError`), `--date-debut` / `--date-fin` (`ValueError`) et `--export-timewave` (`TypeError`) **plantent** avec ce corpus. `--stats`, `--cycles` et `--export-graphe` passent. Corriger ou filtrer le corpus avant import. |
+| 2 | `--seuil-pic` est accepté mais **jamais utilisé** : `est_pic_de_nouveaute` fixe le percentile à 90. | Modifier `timewave.py` pour le rendre paramétrable. |
+| 3 | **Ingestion non testée sur des flux web réels** : les URL par défaut (Science et Vie, Futura) peuvent changer ou exiger un autre format. Les mots-clés sont en français, sans gestion des accents (`inexpliqué` ≠ `inexplique`) et sont testés comme **sous-chaînes** (`bug` matche aussi `debugger`). | Ajuster `rss_feeds`, `TRIGGERS_*` ; tester d'abord avec `--flux fichier.xml`. |
+| 4 | **Règle de tissage** : toute entité plus ancienne de cœur `noir` « attire » le nouvel item (même blanc ou gris), et c'est la **première** trouvée (ordre de la base, pas la plus récente) qui est retenue. | Beaucoup de liens et de cycles pointent vers les mêmes anciens nœuds noirs ; `simple_cycles` peut devenir coûteux sur de gros volumes. |
+| 5 | Un Mugissement à l'ingestion exige qu'un item soit noir, dans un cycle **et** daté sur un pic (percentile 90 de la courbe 1950–2032). Les items RSS sont datés d'« aujourd'hui » : l'alerte est rare sur des flux réels. | Normal ; utiliser le Tuto 4 pour tester. |
+| 6 | La date d'un item sans date de publication est remplacée par le **jour de l'ingestion**. L'ID dépend du titre **et** de la date : un même article sans date réingéré un autre jour est considéré comme nouveau. | Préférer des flux datés. |
+| 7 | `detecter_mugissements` (`main.py`) lit `graphe.nodes[n]["data"]` : un lien vers un `id` absent de la base (nœud fantôme) provoque une `KeyError`. | Toujours ajouter les nœuds avant les liens ; ne pas éditer `liens_temporels` à la main. |
+| 8 | Le delta envoyé à Discord est celui **avant** la guérison ; l'`id` du webhook apparaît en clair dans `config.json` s'il y est collé ; `--set-zero-date` réécrit tout le fichier. | Utiliser `CHRONOS_TRAME_WEBHOOK_URL`. |
+| 9 | Le dashboard GUI n'affiche que **20 entités** sur la courbe et ne gère pas l'ingestion. | Utiliser `--export-*` ou le rapport JSON pour le reste. |
+| 10 | `INSERT OR IGNORE` : le corpus JSON ne met jamais à jour une entité existante. | Supprimer la base après modification du JSON (ce qui efface aussi liens et alertes). |
+| 11 | La description est tronquée à 200 caractères à l'import ; `couches_affectees` n'est pas importé ; `superposition_active` et `intention_observateur` ne sont pas persistés. | — |
+| 12 | `traduire_en_runes` : `c` et `k` → même rune ; chiffres, ponctuation et apostrophes restent en clair. | Tuto 5. |
+| 13 | `detecter_meme` teste des sous-chaînes : `oubli` couvre `oublie`, mais aussi tout mot le contenant. | Affiner les clés de `MEMETIC_TRIGGERS`. |
+| 14 | TimeWave : table **simplifiée** ; courbe **asymétrique** autour de la date zéro. | Modèle stylisé, pas une reproduction fidèle. |
+| 15 | Tous les chemins sont **relatifs au répertoire courant**. | Lancé d'ailleurs, le programme crée `leviathan.db` et `data/` dans ce dossier-là. |
+| 16 | `appliquer_guérison_quantique` est destructrice et non idempotente ; `generer_prophetie` et `ui/cli_oracle.py` ne sont plus appelés. | — |
+| 17 | Aucun test fourni (hors §12), aucune version épinglée, aucune licence déclarée. | → §12 |
 
 ---
 
@@ -978,22 +919,28 @@ Toutes les lignes ci-dessous ont été **constatées à l'exécution** (ou lues 
 
 | Symptôme | Cause | Solution |
 |---|---|---|
-| `ModuleNotFoundError: No module named 'tkinter'` | tkinter non installé (fréquent sous Linux) | Voir §2 : `sudo apt install python3-tk` |
-| `_tkinter.TclError: no display name and no $DISPLAY environment variable` | Mode GUI sans serveur d'affichage (SSH, conteneur, CI) | Utiliser `--mode cli`, ou `xvfb-run -a python main.py --mode gui`, ou activer le X11 forwarding (`ssh -X`) |
-| `ModuleNotFoundError: No module named 'core'` | Script lancé hors racine du dépôt (ex. un script de tuto placé dans `/tmp`) | Placer le script à la racine, ou `PYTHONPATH=. python script.py` |
-| `ModuleNotFoundError: No module named 'rich'` (ou `networkx`, `numpy`, `matplotlib`) | Dépendances non installées / mauvais environnement virtuel | `source .venv/bin/activate && pip install -r requirements.txt` |
-| `UnboundLocalError: … 'json' …` après avoir modifié `main.py` | `import json` local à `main()` | Le supprimer (Tuto 7) |
+| `ModuleNotFoundError: No module named 'feedparser'` | Dépendance absente (utilisée seulement avec `--ingerer`) | `pip install -r requirements.txt` |
+| `ModuleNotFoundError: No module named 'tkinter'` | tkinter non installé (Linux) | `sudo apt install python3-tk` (§2) |
+| `_tkinter.TclError: no display name…` | Mode GUI sans écran (SSH, conteneur, CI) | `--mode cli`, ou `xvfb-run -a python main.py --mode gui`, ou `ssh -X` |
+| `ModuleNotFoundError: No module named 'core'` | Script lancé hors racine du dépôt | Le placer à la racine, ou `PYTHONPATH=. python script.py` |
+| `ModuleNotFoundError: No module named 'rich'` (ou `networkx`, `numpy`, `matplotlib`) | Dépendances non installées / mauvais venv | `source .venv/bin/activate && pip install -r requirements.txt` |
+| `⚠️ Flux malformé` / `Aucune entrée récupérée` | URL invalide, flux vide, blocage réseau ou serveur | Ouvrir l'URL dans un navigateur ; essayer un autre flux ; `--flux fichier.xml` pour tester |
+| `Nouvelles entités digérées : 0` | Items déjà connus (ID déterministe) ou flux vide | Normal à la 2ᵉ exécution ; supprimer `leviathan.db` pour repartir de zéro |
+| Aucun Mugissement malgré des items noirs | Pas de cycle, ou date hors pic de nouveauté | Tuto 4 ; `--cycles` ; `--timewave` |
+| `[Discord] Erreur HTTP 401/404` | Webhook supprimé ou URL mal copiée | Recréer le webhook |
+| `[Discord] Erreur HTTP 403` | Requête rejetée par Discord/Cloudflare | Vérifier l'URL ; ne pas retirer le `User-Agent` de `webhook_notifier.py` |
+| Aucun message Discord et aucun message d'erreur | URL non configurée (mode silencieux) | Définir `CHRONOS_TRAME_WEBHOOK_URL` ou `discord_webhook_url` |
+| `TypeError: strptime() …None` ou `ValueError: time data '-9600-01-01' does not match…` | Entité sans `date_debut` ou à date non ISO (corpus `BDO2.json`) | Limite n° 1 du §10 |
 | Ma modification du JSON n'apparaît pas | `INSERT OR IGNORE` sur un `id` déjà en base | `rm leviathan.db` puis relancer |
-| Le GUI affiche « Le Léviathan dort. » | Base vide : corpus introuvable ou `[]` | Vérifier `data/bdo_corpus_sample.json` et le répertoire courant |
-| Runes ou emojis affichés en `□` ou `?` | Police ou terminal sans support Unicode/Futhark | Terminal UTF-8 + police avec le bloc *Runic* (ex. Noto Sans Runic, DejaVu Sans) |
-| Erreur d'encodage sous Windows (console non UTF-8) | Console héritée en page de code locale | `chcp 65001` ou `set PYTHONUTF8=1` avant de lancer (non testé ici) |
-| Le graphe GUI a un fond blanc et pas de titre | Voir limite n° 13 | Correctif indiqué dans le tableau §10 |
+| Le GUI affiche « Le Léviathan dort. » | Base vide : corpus introuvable ou `[]` | Vérifier `corpus_path` et le répertoire courant |
+| Runes ou emojis affichés en `□` ou `?` | Terminal/police sans Unicode/Futhark | Terminal UTF-8 + police avec le bloc *Runic* (Noto Sans Runic, DejaVu Sans) |
+| Erreur d'encodage sous Windows | Console en page de code locale | `chcp 65001` ou `set PYTHONUTF8=1` (non testé ici) |
 
 ---
 
 ## 12. Vérifier l'installation (smoke test)
 
-Aucun test n'est fourni avec le dépôt. Voici un smoke test minimal, sans dépendance supplémentaire (ni `pytest`), qui valide le cœur du projet. Enregistrez-le en `smoke_test.py` **à la racine** :
+Smoke test minimal, sans `pytest` ni réseau, couvrant le cœur **et** l'ingestion. Enregistrez-le en `smoke_test.py` **à la racine** :
 
 ```python
 """Smoke test Chronos-Trame — à lancer depuis la racine : python smoke_test.py"""
@@ -1004,12 +951,17 @@ from core.fracturo_engine import FracturoEngine
 from core.ontology import EntiteOntique
 from core.temporal_graph import TisserandTemporal
 from core.timewave import TimeWaveZero
+from core.webhook_notifier import DiscordNotifier
 from storage.leviathan_db import LeviathanDB
+
+def ent(i, coeur="gris", date="2000-01-01"):
+    return EntiteOntique(i, i, "", date, None, "RM", coeur, .5, .5, .5, 1)
 
 def test_runes():
     f = FracturoEngine()
     assert f.traduire_en_runes("ab ") == "ᚨᛒ•"
     assert f.detecter_meme("une boucle") == ["BOUCLE(ᛟᚱᛟᛒᛟᚱᛟ)"]
+    assert f.detecter_meme("lumiere") == ["LUMIÈRE(ᛋᛟᚹᛁᛚᛟ)"]   # insensible aux accents
 
 def test_timewave():
     tw = TimeWaveZero()
@@ -1017,8 +969,7 @@ def test_timewave():
     assert round(tw.calculer_nouveaute(datetime(1999, 12, 31)), 3) == -10.109
 
 def test_graphe():
-    def e(i): return EntiteOntique(i, i, "", "2000-01-01", None, "RM", "gris", .5, .5, .5, 1)
-    t = TisserandTemporal(); [t.ajouter_entite(e(i)) for i in "AB"]
+    t = TisserandTemporal(); [t.ajouter_entite(ent(i)) for i in "AB"]
     t.tisser_lien("A", "B", .5); assert t.detecter_paradoxes() == []
     t.tisser_lien("B", "A", .5, "retrocausal"); assert len(t.detecter_paradoxes()) == 1
 
@@ -1026,11 +977,44 @@ def test_db():
     with tempfile.TemporaryDirectory() as d:
         db = LeviathanDB(os.path.join(d, "t.db"))
         db.charger_corpus_bdo("data/bdo_corpus_sample.json")
-        avant = db.obtenir_toutes_entites()
-        db.charger_corpus_bdo("data/bdo_corpus_sample.json")  # 2e chargement : idempotent
-        apres = db.obtenir_toutes_entites()
-        assert len(avant) == len(apres) >= 1
-        assert "demo_001" in {e.id for e in apres}
+        db.charger_corpus_bdo("data/bdo_corpus_sample.json")      # idempotent
+        assert "demo_001" in {e.id for e in db.obtenir_toutes_entites()}
+        # UPSERT complet
+        e = ent("X", "noir", "2026-01-01"); e.fragments_runiques = ["ᚨ", "ᛒ"]; e.paleo_memes = ["M(ᛗ)"]
+        db.sauvegarder_entite(e); e.delta_pendant = .1; db.sauvegarder_entite(e)
+        x = next(v for v in db.obtenir_toutes_entites() if v.id == "X")
+        assert x.delta_pendant == .1 and x.fragments_runiques == ["ᚨ", "ᛒ"] and x.paleo_memes == ["M(ᛗ)"]
+        # liens et alertes
+        db.sauvegarder_lien("X", "demo_001", .8, "retrocausal"); db.sauvegarder_lien("X", "demo_001", .8, "retrocausal")
+        assert len(db.obtenir_liens()) == 1
+        db.sauvegarder_alerte("X", "MUGISSEMENT_QUANTIQUE", "test")
+        assert db.obtenir_alertes()[0][2] == "MUGISSEMENT_QUANTIQUE"
+
+def test_ingestion_flux_local():
+    from core.rss_ingestor import RSSIngestor
+    xml = ("<rss><channel>"
+           "<item><title>Disparition et secret</title><description>anomalie</description>"
+           "<pubDate>Sat, 01 Aug 2026 12:00:00 +0000</pubDate></item>"
+           "<item><title>Harmonie et lumière</title><description>paix</description>"
+           "<pubDate>Tue, 01 Sep 2026 12:00:00 +0000</pubDate></item>"
+           "</channel></rss>")
+    os.environ.pop("CHRONOS_TRAME_WEBHOOK_URL", None)
+    with tempfile.TemporaryDirectory() as d:
+        feed = os.path.join(d, "f.xml"); open(feed, "w", encoding="utf-8").write(xml)
+        for attendu in (2, 0):                                     # 2e passage : aucun doublon
+            db = LeviathanDB(os.path.join(d, "t.db")); tis = TisserandTemporal(); tw = TimeWaveZero()
+            for e in db.obtenir_toutes_entites(): tis.ajouter_entite(e)
+            ing = RSSIngestor(db, FracturoEngine(), tis, tw)
+            ing.ingerer_flux([feed], max_entries_per_feed=10)
+            assert ing.nb_nouvelles == attendu
+        coeurs = {e.nom: e.coeur_dominant for e in db.obtenir_toutes_entites()}
+        assert coeurs["Disparition et secret"] == "noir" and coeurs["Harmonie et lumière"] == "blanc"
+        assert len(db.obtenir_liens()) == 2                        # boucle rétrocausale + retour causal
+
+def test_webhook_silencieux():
+    os.environ.pop("CHRONOS_TRAME_WEBHOOK_URL", None)
+    assert DiscordNotifier().webhook_url is None
+    DiscordNotifier().send_omega_alert("x", "r", ["a", "b"], [], 0.1)   # ne doit rien lever
 
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
@@ -1046,68 +1030,28 @@ Résultat attendu :
 ✔ test_timewave
 ✔ test_graphe
 ✔ test_db
+✔ test_ingestion_flux_local
+✔ test_webhook_silencieux
 Tout est OK.
 ```
 
-Ce script est compatible `pytest` (les fonctions `test_*` sont découvertes automatiquement).
+Le script est compatible `pytest`. Le test d'ingestion passe par `feedparser` sur un **fichier local** : aucun accès réseau.
 
 ---
 
 ## 13. Pistes d'évolution
 
-Classées par rapport coût/valeur, en s'appuyant sur ce qui existe déjà :
+Classées par rapport coût/valeur :
 
-1. **Brancher `config.json`** et utiliser `pathlib.Path(__file__).parent` pour des chemins indépendants du répertoire courant (Tuto 7).
-2. **Assembler le vrai Mugissement** et remplacer `simuler_veille_trame()` par un pipeline réel sur les entités de la base (Tuto 4).
-3. **Persister les liens et les runes** (`liens_temporels`, colonnes `runes`/`couches`) (Tuto 8).
-4. **Ingestion RSS avec `feedparser`** : la dépendance est déjà listée. Chaque item de flux peut être transformé en `EntiteOntique` (titre → `nom`, résumé → `description`, date de publication → `date_debut`) puis passé à `detecter_meme` et `traduire_en_runes`.
-5. **Autoriser la mise à jour du corpus** : remplacer `INSERT OR IGNORE` par `INSERT … ON CONFLICT(id) DO UPDATE …`.
-6. **Utiliser les champs dormants** : `couches_osi`, `superposition_active`, `intention_observateur`, `delta_moyen`, `risque` (par exemple pour pondérer la taille des nœuds du graphe).
-7. **Qualité** : épingler les versions, ajouter `pytest` (le §12 est un point de départ), un `.gitignore` (`leviathan.db`, `.venv/`, `__pycache__/`), un `ruff`/`black`, et choisir une **licence**.
-
----
-
-*README généré à partir de l'analyse du code source (20 fichiers, ~430 lignes de Python) ; chaque exemple a été exécuté sur Python 3.12.3 avec `rich`, `networkx`, `matplotlib`, `numpy` et un tkinter fonctionnel (via Xvfb).*
+1. **Fiabiliser l'import de `BDO2.json`** : dédoublonner les `id`, normaliser ou rejeter les dates non ISO / `null` (corrige les plantages de `--signaux`, des filtres de date et de `--export-timewave`), importer `couches_affectees`.
+2. **Rendre `--seuil-pic` effectif** : passer le percentile à `est_pic_de_nouveaute`.
+3. **Affiner l'ingestion** : mots-clés insensibles aux accents et à mots entiers, choix de l'ancêtre le plus proche (et non le premier) pour le tissage, plafonnement des cycles, flux propres au lore MTT-2075.
+4. **Autres canaux d'alerte** : le `DiscordNotifier` est un modèle pour Slack, Matrix ou Telegram ; ajouter un choix de salon par gravité (risque, cœur).
+5. **Planifier l'ingestion** : `cron` / tâche planifiée appelant `python main.py --ingerer` ; `obtenir_alertes()` pour un historique.
+6. **Brancher les champs dormants** : `superposition_active`, `intention_observateur`, `delta_moyen`, `couches_osi`, `generer_prophetie` dans les alertes.
+7. **Dashboard** : afficher les alertes, déclencher l'ingestion depuis le GUI, dépasser la limite de 20 entités.
+8. **Qualité** : épingler les versions, ajouter `pytest` (le §12 est un point de départ), un `.gitignore` (`leviathan.db`, `.venv/`, `__pycache__/`, `data/config.json` si le webhook y est collé), un `ruff`/`black`, et choisir une **licence**.
 
 ---
 
-## 14. Ingestion RSS et alertes Discord
-
-Deux modules ajoutés : `core/rss_ingestor.py` (le « cycle de digestion ») et `core/webhook_notifier.py`.
-
-### Utilisation
-
-```bash
-pip install -r requirements.txt
-python main.py --ingerer                                   # flux de data/config.json
-python main.py --ingerer --flux https://exemple.org/rss    # flux ponctuel (option répétable)
-python main.py --ingerer --max-entries 5 --stats --cycles  # ingestion puis analyses
-```
-
-`--ingerer` force le mode CLI. Les entités ingérées sont persistées dans `leviathan.db` (ID = hash du titre + date : un second passage ne crée pas de doublon), puis incluses dans les analyses de la même exécution.
-
-### Fonctionnement
-
-1. Chaque item de flux devient une `EntiteOntique` (classe `IR`). Un classifieur heuristique à mots-clés (`TRIGGERS_NOIR` / `TRIGGERS_BLANC`) fixe le cœur, le delta et le risque.
-2. Enrichissement `FracturoEngine` : runes du titre, paléo-mèmes de la description.
-3. **Tissage rétrocausal** : si une entité plus ancienne partage un paléo-mème, ou est déjà « noire », un lien rétrocausal (nouvelle ➜ ancienne) est tissé, avec un lien causal de retour (ancienne ➜ nouvelle) pour fermer la boucle. Les deux liens sont persistés dans `liens_temporels`.
-4. **Mugissement** : si l'entité est noire, appartient à un cycle et tombe sur un pic de nouveauté TimeWave, l'alerte est affichée, envoyée à Discord, enregistrée dans la table `alertes`, puis `appliquer_guérison_quantique` corrompt le cycle (et la base est mise à jour).
-
-### Configuration (`data/config.json`)
-
-```json
-{
-  "db_path": "leviathan.db",
-  "corpus_path": "data/bdo_corpus_sample.json",
-  "timewave_zero_date": "2012-12-21",
-  "discord_webhook_url": "",
-  "rss_feeds": ["https://www.science-et-vie.com/rss", "https://www.futura-sciences.com/rss/actualites.xml"],
-  "rss_max_entries": 10
-}
-```
-
-Pour ne pas écrire l'URL du webhook dans un fichier versionné, utilisez plutôt la variable d'environnement `CHRONOS_TRAME_WEBHOOK_URL` (utilisée si `discord_webhook_url` est vide). Sans URL, le notifier reste silencieux.
-
-### Nouvelles méthodes de `LeviathanDB`
-
-`sauvegarder_entite` (UPSERT complet), `sauvegarder_alerte`, `obtenir_alertes` ; la table `alertes` est créée avec les autres tables.
+*README mis à jour pour la version 2.0 + ingestion RSS et alertes Discord (~1 300 lignes de Python). Les extraits de code et sorties ont été exécutés sur Python 3.12 ; la GUI, les flux web réels et l'envoi Discord réel n'ont pas pu l'être dans l'environnement de rédaction.*
