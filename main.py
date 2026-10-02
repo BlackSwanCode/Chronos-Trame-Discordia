@@ -100,10 +100,10 @@ def filtrer_entites(entites: List[EntiteOntique], args) -> List[EntiteOntique]:
         resultat = [e for e in resultat if e.risque >= args.risque_min]
     if hasattr(args, 'date_debut') and args.date_debut:
         date_debut = datetime.strptime(args.date_debut, "%Y-%m-%d")
-        resultat = [e for e in resultat if datetime.strptime(e.date_debut, "%Y-%m-%d") >= date_debut]
+        resultat = [e for e in resultat if e.date_debut and datetime.strptime(e.date_debut, "%Y-%m-%d") >= date_debut]
     if hasattr(args, 'date_fin') and args.date_fin:
         date_fin = datetime.strptime(args.date_fin, "%Y-%m-%d")
-        resultat = [e for e in resultat if datetime.strptime(e.date_debut, "%Y-%m-%d") <= date_fin]
+        resultat = [e for e in resultat if e.date_debut and datetime.strptime(e.date_debut, "%Y-%m-%d") <= date_fin]
     return resultat
 
 def detecter_mugissements(tisserand, timewave, entites, historique):
@@ -216,6 +216,7 @@ def analyser_signaux_faibles(tisserand, timewave, entites, historique, seuil_pic
     signaux = []
     for ent in entites:
         try:
+            if not ent.date_debut: continue
             date = datetime.strptime(ent.date_debut, "%Y-%m-%d")
             nouveaute = timewave.calculer_nouveaute(date)
             est_pic = timewave.est_pic_de_nouveaute(date, historique)

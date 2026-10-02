@@ -128,7 +128,7 @@ class RSSIngestor:
 
         # 4. Tissage rétrocausal : le présent influence le passé.
         # On cherche une ancienne entité qui partage un paléo-mème, ou qui est déjà "noire".
-        anciennes = [e for e in self._entites.values() if e.date_debut < date_str]
+        anciennes = [e for e in self._entites.values() if e.date_debut and e.date_debut < date_str]
         for ancienne in anciennes:
             if set(entite.paleo_memes) & set(ancienne.paleo_memes) or ancienne.coeur_dominant == "noir":
                 self._tisser_boucle(entite, ancienne)
